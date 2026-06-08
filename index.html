@@ -995,6 +995,17 @@ function bulkAdd(){
   document.getElementById('k-bulk').value='';
   renderAdmin();
 }
+
+// Mobile touch fix - alle Buttons
+document.addEventListener('DOMContentLoaded', function(){
+  var btns = document.querySelectorAll('button, .tab, .stab, .day, .crow');
+  for(var i=0; i<btns.length; i++){
+    btns[i].addEventListener('touchend', function(ev){
+      ev.preventDefault();
+      this.click();
+    });
+  }
+});
 </script>
 </body>
 </html>
