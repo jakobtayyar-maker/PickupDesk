@@ -142,12 +142,6 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 .ctabtn-g{padding:12px;background:var(--g);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 .ctabtn-o{padding:11px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.75);border:1.5px solid rgba(255,255,255,.14);border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
 .lfoot{text-align:center;padding:10px 16px 24px;font-size:11px;color:var(--ink3)}
-
-/* Mobile touch */
-button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow{
-  touch-action:manipulation;
-  cursor:pointer;
-}
 </style>
 </head>
 <body>
@@ -373,9 +367,6 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 <script>
 var PIN='180569';
 var ADMIN_PIN='20082026';
-var SB='https://rqkdfjkywbfimswwtvwh.supabase.co/rest/v1';
-var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxa2Rmamt5d2JmaW1zd3d0dndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzc4NTYsImV4cCI6MjA5NTY1Mzg1Nn0.JlimK_1urpPcyyZtww0WZl9z_AvfKwKEn1rft-5Lmuo';
-function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};}
 var SCHOOL='Grundschule am Hengstbach';
 var currentDay='mo';
 var gefundenId=null;
@@ -388,29 +379,6 @@ function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 function getKinder(){return ls('pd_kinder')||[];}
 function saveKinder(l){ss('pd_kinder',l);}
 function getEntries(){return ls('pd_entries')||[];}
-
-// Supabase sync
-function sbPost(entry){
-  fetch(SB+'/entries',{method:'POST',headers:sbh(),body:JSON.stringify(entry)}).catch(function(){});
-}
-function sbDel(id){
-  fetch(SB+'/entries?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbh()}).catch(function(){});
-}
-function sbDelName(name,tag){
-  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+tag,{method:'DELETE',headers:sbh()}).catch(function(){});
-}
-function sbPatch(id,data){
-  fetch(SB+'/entries?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:sbh(),body:JSON.stringify(data)}).catch(function(){});
-}
-function sbClear(){
-  fetch(SB+'/entries',{method:'DELETE',headers:sbh()}).catch(function(){});
-}
-function sbLoad(cb){
-  fetch(SB+'/entries?select=*&order=zeit.asc',{method:'GET',headers:sbh()})
-  .then(function(r){return r.json();})
-  .then(function(data){if(Array.isArray(data)){ss('pd_entries',data);if(cb)cb();}else{if(cb)cb();}})
-  .catch(function(){if(cb)cb();});
-}
 function saveEntries(l){ss('pd_entries',l);}
 
 // Mitternacht
@@ -474,8 +442,6 @@ function melden(){
   entries.push({id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay});
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
-  sbDelName(name,elternDay);
-  sbPost(newEntry);
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -550,8 +516,7 @@ function aendern(){
   
   newEntries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   localStorage.setItem('pd_entries',JSON.stringify(newEntries));
-  sbDel(sid);
-  sbPost(newEntries.find(function(x){return x.id===neuId;}));
+  
   // Neue ID merken für weitere Änderungen
   gefundenId=neuId;
   
@@ -570,7 +535,6 @@ function eLoeschen(){
     if(String(entries[i].id)!==sid)keep.push(entries[i]);
   }
   localStorage.setItem('pd_entries',JSON.stringify(keep));
-  sbDel(sid);
   gefundenId=null;
   document.getElementById('s-found').style.display='none';
   document.getElementById('s-vn').value='';
@@ -612,9 +576,6 @@ function lSub(n){
 }
 
 function renderListe(){
-  sbLoad(function(){ doRenderListe(); });
-}
-function doRenderListe(){
   var search=(document.getElementById('l-search').value||'').toLowerCase();
 
   // "Alle Kinder" = Admin-Liste mit Abhak-Status aus Einträgen
@@ -995,17 +956,6 @@ function bulkAdd(){
   document.getElementById('k-bulk').value='';
   renderAdmin();
 }
-
-// Mobile touch fix - alle Buttons
-document.addEventListener('DOMContentLoaded', function(){
-  var btns = document.querySelectorAll('button, .tab, .stab, .day, .crow');
-  for(var i=0; i<btns.length; i++){
-    btns[i].addEventListener('touchend', function(ev){
-      ev.preventDefault();
-      this.click();
-    });
-  }
-});
 </script>
 </body>
 </html>
