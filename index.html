@@ -479,49 +479,33 @@ function aendern(){
   if(!gefundenId)return;
   var zeit=document.getElementById('s-zeit').value;
   var abhol=document.getElementById('s-abhol').value.trim();
-  if(!zeit){show('s-err','Bitte Abholzeit eingeben.');return;}
+  if(!zeit)return;
   
-  // Alten Eintrag finden und Daten merken
+  // Direkt aus localStorage lesen
   var raw=localStorage.getItem('pd_entries');
-  var entries=raw?JSON.parse(raw):[];
+  if(!raw){show('s-err','Kein Speicher.');return;}
+  var arr=JSON.parse(raw);
   var sid=String(gefundenId);
-  var oldEntry=null;
+  var ok=false;
   
-  // Alten Eintrag entfernen
-  var newEntries=[];
-  for(var i=0;i<entries.length;i++){
-    if(String(entries[i].id)===sid){
-      oldEntry=entries[i];
-    }else{
-      newEntries.push(entries[i]);
+  for(var i=0;i<arr.length;i++){
+    if(String(arr[i].id)===sid){
+      arr[i].zeit=zeit;
+      arr[i].abhol=abhol;
+      ok=true;
+      break;
     }
   }
   
-  if(!oldEntry){show('s-err','Eintrag nicht gefunden.');return;}
+  if(!ok){show('s-err','Eintrag nicht gefunden.');return;}
   
-  // Neuen Eintrag mit neuer ID erstellen
-  var neuId='e'+Date.now();
-  newEntries.push({
-    id:neuId,
-    name:oldEntry.name,
-    v:oldEntry.v,
-    n:oldEntry.n,
-    zeit:zeit,
-    abhol:abhol,
-    hw:oldEntry.hw||'',
-    done:false,
-    tag:oldEntry.tag,
-    src:oldEntry.src||''
-  });
+  // Direkt speichern
+  localStorage.setItem('pd_entries',JSON.stringify(arr));
   
-  newEntries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
-  localStorage.setItem('pd_entries',JSON.stringify(newEntries));
-  
-  // Neue ID merken für weitere Änderungen
-  gefundenId=neuId;
-  
+  // Info aktualisieren aber NICHT die ID ändern
   show('s-ok','\u2705 Geändert auf '+zeit+' Uhr!');
-  document.getElementById('s-info').innerHTML='<b>'+oldEntry.name+'</b> — '+zeit+' Uhr'+(abhol?' \u00b7 '+abhol:'');
+  document.getElementById('s-info').innerHTML='<b>'+arr.find(function(x){return String(x.id)===sid;}).name+'</b> — '+zeit+' Uhr'+(abhol?' \u00b7 '+abhol:'');
+  document.getElementById('s-zeit').value=zeit;
 }
 
 function eLoeschen(){
