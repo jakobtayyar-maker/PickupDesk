@@ -142,6 +142,11 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 .ctabtn-g{padding:12px;background:var(--g);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
 .ctabtn-o{padding:11px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.75);border:1.5px solid rgba(255,255,255,.14);border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
 .lfoot{text-align:center;padding:10px 16px 24px;font-size:11px;color:var(--ink3)}
+
+/* Mobile touch */
+button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow{
+  touch-action:manipulation;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -367,6 +372,9 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 <script>
 var PIN='180569';
 var ADMIN_PIN='20082026';
+var SB='https://rqkdfjkywbfimswwtvwh.supabase.co/rest/v1';
+var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxa2Rmamt5d2JmaW1zd3d0dndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzc4NTYsImV4cCI6MjA5NTY1Mzg1Nn0.JlimK_1urpPcyyZtww0WZl9z_AvfKwKEn1rft-5Lmuo';
+function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};}
 var SCHOOL='Grundschule am Hengstbach';
 var currentDay='mo';
 var gefundenId=null;
@@ -379,6 +387,15 @@ function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 function getKinder(){return ls('pd_kinder')||[];}
 function saveKinder(l){ss('pd_kinder',l);}
 function getEntries(){return ls('pd_entries')||[];}
+function sbPost(e){fetch(SB+'/entries',{method:'POST',headers:sbh(),body:JSON.stringify(e)}).catch(function(){});}
+function sbDel(id){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function sbPatch(id,d){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
+function sbLoad(cb){
+  fetch(SB+'/entries?select=*&order=zeit.asc',{method:'GET',headers:sbh()})
+  .then(function(r){return r.json();})
+  .then(function(d){if(Array.isArray(d)){ss('pd_entries',d);}if(cb)cb();})
+  .catch(function(){if(cb)cb();});
+}
 function saveEntries(l){ss('pd_entries',l);}
 
 // Mitternacht
@@ -442,6 +459,8 @@ function melden(){
   entries.push({id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay});
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
+  // Supabase sync
+  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay,{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -502,6 +521,7 @@ function aendern(){
   // Direkt speichern
   localStorage.setItem('pd_entries',JSON.stringify(arr));
   
+  sbPatch(sid,{zeit:zeit,abhol:abhol});
   // Info aktualisieren aber NICHT die ID ändern
   show('s-ok','\u2705 Geändert auf '+zeit+' Uhr!');
   document.getElementById('s-info').innerHTML='<b>'+arr.find(function(x){return String(x.id)===sid;}).name+'</b> — '+zeit+' Uhr'+(abhol?' \u00b7 '+abhol:'');
@@ -519,6 +539,7 @@ function eLoeschen(){
     if(String(entries[i].id)!==sid)keep.push(entries[i]);
   }
   localStorage.setItem('pd_entries',JSON.stringify(keep));
+  sbDel(sid);
   gefundenId=null;
   document.getElementById('s-found').style.display='none';
   document.getElementById('s-vn').value='';
@@ -560,6 +581,9 @@ function lSub(n){
 }
 
 function renderListe(){
+  sbLoad(function(){doRenderListe();});
+}
+function doRenderListe(){
   var search=(document.getElementById('l-search').value||'').toLowerCase();
 
   // "Alle Kinder" = Admin-Liste mit Abhak-Status aus Einträgen
@@ -680,7 +704,9 @@ function toggleDone(id){
       if(String(entries[i].id)===sid){entries[i].done=!entries[i].done;break;}
     }
   }
-  saveEntries(entries);renderListe();
+  saveEntries(entries);
+  var ue=entries.find(function(x){return String(x.id)===sid;});
+  if(ue)sbPatch(ue.id,{done:ue.done});renderListe();
 }
 function clearEntries(){
   var alle=getEntries();
@@ -940,6 +966,11 @@ function bulkAdd(){
   document.getElementById('k-bulk').value='';
   renderAdmin();
 }
+
+document.addEventListener('DOMContentLoaded',function(){
+  var b=document.querySelectorAll('button,.tab,.stab,.day,.crow');
+  for(var i=0;i<b.length;i++){b[i].addEventListener('touchend',function(e){e.preventDefault();this.click();});}
+});
 </script>
 </body>
 </html>
