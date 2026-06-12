@@ -598,7 +598,7 @@ function lSub(n){
 }
 
 function renderListe(){
-  sbLoad(function(){doRenderListe();});
+  kbLoad(function(){sbLoad(function(){doRenderListe();});});
 }
 function doRenderListe(){
   var search=(document.getElementById('l-search').value||'').toLowerCase();
