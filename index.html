@@ -390,6 +390,15 @@ function getEntries(){return ls('pd_entries')||[];}
 function sbPost(e){fetch(SB+'/entries',{method:'POST',headers:sbh(),body:JSON.stringify(e)}).catch(function(){});}
 function sbDel(id){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{method:'DELETE',headers:sbh()}).catch(function(){});}
 function sbPatch(id,d){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
+function kbPost(k){fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.stringify(k)}).catch(function(){});}
+function kbDel(name){fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function kbClear(){fetch(SB+'/kinder',{method:'DELETE',headers:sbh()}).catch(function(){});}
+function kbLoad(cb){
+  fetch(SB+'/kinder?select=*&order=name.asc',{method:'GET',headers:sbh()})
+  .then(function(r){return r.json();})
+  .then(function(d){if(Array.isArray(d)){ss('pd_kinder',d);}if(cb)cb();})
+  .catch(function(){if(cb)cb();});
+}
 function sbLoad(cb){
   fetch(SB+'/entries?select=*&order=zeit.asc',{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
@@ -427,6 +436,7 @@ function acceptConsent(){
   consentOk=true;
   document.getElementById('e-consent-step').style.display='none';
   document.getElementById('e-form').style.display='block';
+  kbLoad(function(){});
 }
 var consentOk=false;
 
@@ -451,10 +461,16 @@ function melden(){
   if(!n){show('e-err','Bitte Nachname eingeben.');return;}
   if(!zeit){show('e-err','Bitte Abholzeit wählen.');return;}
   var name=v+' '+n;
+  // Kinder von Supabase laden falls nötig
   var kinder=getKinder();
   var found=false;
   for(var i=0;i<kinder.length;i++){if(kinder[i].name.toLowerCase()===name.toLowerCase()){found=true;break;}}
-  if(!found){show('e-err','Das Kind "'+name+'" ist nicht im System registriert. Bitte wenden Sie sich an die Betreuung.');return;}
+  if(!found){
+    // Nochmal versuchen - vielleicht sind lokale Daten veraltet
+    show('e-err','Das Kind "'+name+'" ist nicht im System registriert. Bitte wenden Sie sich an die Betreuung.');
+    kbLoad(function(){});
+    return;
+  }
   var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
   entries.push({id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay});
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
@@ -741,6 +757,7 @@ function kindHinzu(){
   kinder.push({name:name,klasse:kl,zeit:zeit||'15:00'});
   kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
   saveKinder(kinder);
+  kbPost({name:name,klasse:kl,zeit:zeit||'15:00'});
   show('k-ok','✅ '+name+' hinzugefügt!');
   document.getElementById('k-vn').value='';document.getElementById('k-nn').value='';
   document.getElementById('k-kl').value='';document.getElementById('k-zeit').value='';
@@ -749,6 +766,9 @@ function kindHinzu(){
 }
 
 function renderAdmin(){
+  kbLoad(function(){doRenderAdmin();});
+}
+function doRenderAdmin(){
   var kinder=getKinder();
   var search=(document.getElementById('k-search').value||'').toLowerCase();
   if(search){kinder=kinder.filter(function(k){return k.name.toLowerCase().indexOf(search)>=0;});}
@@ -772,12 +792,14 @@ function renderAdmin(){
         var name=filtered[idx]?filtered[idx].name:'';
         if(name&&confirm(name+' wirklich entfernen?')){
           saveKinder(alle.filter(function(k){return k.name!==name;}));
+          kbDel(name);
           renderAdmin();
         }
       }else{
         if(alle[idx]&&confirm(alle[idx].name+' wirklich entfernen?')){
           alle.splice(idx,1);
           saveKinder(alle);
+          kbDel(alle[idx]?alle[idx].name:'');
           renderAdmin();
         }
       }
@@ -790,6 +812,7 @@ function alleKinderLoeschen(){
   if(k.length===0){window.alert('Keine Kinder vorhanden.');return;}
   if(!window.confirm('Alle '+k.length+' Kinder loeschen?'))return;
   localStorage.removeItem('pd_kinder');
+  kbClear();
   renderAdmin();
 }
 
@@ -956,6 +979,7 @@ function bulkAdd(){
     if(name.indexOf(' ')<0){skipped.push(name+' (Vor- und Nachname nötig)');continue;}
     if(kinder.find(function(k){return k.name.toLowerCase()===name.toLowerCase();})){skipped.push(name+' (bereits vorhanden)');continue;}
     kinder.push({name:name,klasse:klasse,zeit:zeit});
+    kbPost({name:name,klasse:klasse,zeit:zeit});
     added++;
   }
   kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
