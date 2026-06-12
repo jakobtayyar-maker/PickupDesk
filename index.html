@@ -472,7 +472,8 @@ function melden(){
     return;
   }
   var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
-  entries.push({id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay});
+  var newEntry={id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay};
+  entries.push(newEntry);
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
