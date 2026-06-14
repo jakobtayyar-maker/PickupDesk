@@ -489,7 +489,7 @@ function melden(){
   saveEntries(entries);
   // Supabase sync
   syncLock=true;
-  setTimeout(function(){syncLock=false;},5000);
+  setTimeout(function(){syncLock=false;},8000);
   fetch(SB+'/entries?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
@@ -560,9 +560,12 @@ function aendern(){
   // Direkt speichern
   localStorage.setItem('pd_entries',JSON.stringify(arr));
   
-  sbPatch(sid,{zeit:zeit,abhol:abhol});
+  // Supabase: alten löschen + neuen posten (zuverlässiger als PATCH)
   syncLock=true;
-  setTimeout(function(){syncLock=false;},5000);
+  setTimeout(function(){syncLock=false;},8000);
+  var updated=arr.find(function(x){return String(x.id)===sid;});
+  sbDel(sid);
+  if(updated)setTimeout(function(){sbPost(updated);},500);
   // Info aktualisieren aber NICHT die ID ändern
   show('s-ok','\u2705 Geändert auf '+zeit+' Uhr!');
   document.getElementById('s-info').innerHTML='<b>'+arr.find(function(x){return String(x.id)===sid;}).name+'</b> — '+zeit+' Uhr'+(abhol?' \u00b7 '+abhol:'');
