@@ -144,7 +144,7 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 .lfoot{text-align:center;padding:10px 16px 24px;font-size:11px;color:var(--ink3)}
 
 /* Mobile touch */
-button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow{
+button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow,.pick-entry{
   touch-action:manipulation;cursor:pointer;
 }
 </style>
@@ -523,6 +523,7 @@ function suchen(){
         if(String(matches[q].id)===eid){selectEntry(matches[q]);break;}
       }
     });
+    picks[p].addEventListener('touchend',function(ev){ev.preventDefault();this.click();});
   }
 }
 
