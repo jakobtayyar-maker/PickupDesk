@@ -490,7 +490,7 @@ function melden(){
   // Supabase sync
   syncLock=true;
   setTimeout(function(){syncLock=false;},8000);
-  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
+  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay,{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
