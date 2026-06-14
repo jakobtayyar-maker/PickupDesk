@@ -494,6 +494,7 @@ function suchen(){
   gefundenId=null;
   var v=document.getElementById('s-vn').value.trim();
   var n=document.getElementById('s-nn').value.trim();
+  if(!suchenDay){show('s-err','Bitte Wochentag auswählen.');return;}
   if(!v||!n){show('s-err','Bitte Vor- und Nachname eingeben.');return;}
   var name=v+' '+n;
   var raw=localStorage.getItem('pd_entries');
@@ -501,9 +502,10 @@ function suchen(){
   var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
   var found=null;
   for(var i=0;i<entries.length;i++){
-    if(entries[i].name.toLowerCase()===name.toLowerCase()){found=entries[i];break;}
+    if(entries[i].name.toLowerCase()===name.toLowerCase()&&entries[i].tag===suchenDay){found=entries[i];break;}
   }
-  if(!found){show('s-err','Kein Eintrag für "'+name+'" gefunden.');return;}
+  var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
+  if(!found){show('s-err','Kein Eintrag für "'+name+'" am '+(tage[suchenDay]||'')+' gefunden.');return;}
   selectEntry(found);
 }
 
