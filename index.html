@@ -386,6 +386,7 @@ function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'a
 var SCHOOL='Grundschule am Hengstbach';
 var currentDay='';
 var gefundenId=null;
+var syncLock=false;
 var adminLoggedIn=false;
 var FARBEN=[{bg:'#D8F3DC',fg:'#1B4332'},{bg:'#FEF3C7',fg:'#78350F'},{bg:'#DBEAFE',fg:'#1E3A5F'},{bg:'#FCE7F3',fg:'#831843'},{bg:'#EDE9FE',fg:'#4C1D95'},{bg:'#FFEDD5',fg:'#7C2D12'}];
 
@@ -408,9 +409,10 @@ function kbLoad(cb){
   .catch(function(){if(cb)cb();});
 }
 function sbLoad(cb){
+  if(syncLock){if(cb)cb();return;}
   fetch(SB+'/entries?select=*&order=zeit.asc',{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
-  .then(function(d){if(Array.isArray(d)){ss('pd_entries',d);}if(cb)cb();})
+  .then(function(d){if(Array.isArray(d)&&!syncLock){ss('pd_entries',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
 }
 function saveEntries(l){ss('pd_entries',l);}
@@ -486,6 +488,8 @@ function melden(){
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
+  syncLock=true;
+  setTimeout(function(){syncLock=false;},5000);
   fetch(SB+'/entries?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
@@ -557,6 +561,8 @@ function aendern(){
   localStorage.setItem('pd_entries',JSON.stringify(arr));
   
   sbPatch(sid,{zeit:zeit,abhol:abhol});
+  syncLock=true;
+  setTimeout(function(){syncLock=false;},5000);
   // Info aktualisieren aber NICHT die ID ändern
   show('s-ok','\u2705 Geändert auf '+zeit+' Uhr!');
   document.getElementById('s-info').innerHTML='<b>'+arr.find(function(x){return String(x.id)===sid;}).name+'</b> — '+zeit+' Uhr'+(abhol?' \u00b7 '+abhol:'');
