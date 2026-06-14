@@ -745,8 +745,8 @@ function toggleDone(id){
 }
 function clearEntries(){
   var alle=getEntries();
-  if(alle.length===0){alert('Keine Einträge zum Löschen.');return;}
-  if(!confirm('Alle '+alle.length+' Einträge löschen?'))return;
+  if(alle.length===0){alert('Keine Sonder-Abholungen zum Löschen.');return;}
+  if(!confirm('Alle '+alle.length+' Sonder-Abholungen löschen?'))return;
   saveEntries([]);
   fetch(SB+'/entries?id=not.is.null',{method:'DELETE',headers:sbh()}).catch(function(){});
   lSub(2);
@@ -831,9 +831,9 @@ function alleKinderLoeschen(){
   var k=getKinder();
   if(k.length===0){alert('Keine Kinder vorhanden.');return;}
   if(!confirm('Alle '+k.length+' Kinder wirklich loeschen?'))return;
-  localStorage.removeItem('pd_kinder');
+  saveKinder([]);
   kbClear();
-  setTimeout(function(){renderAdmin();},500);
+  renderAdmin();
 }
 
 // ── Eltern Tag ──
