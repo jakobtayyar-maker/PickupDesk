@@ -393,7 +393,7 @@ function sbDel(id){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{me
 function sbPatch(id,d){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id)),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
 function kbPost(k){fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.stringify(k)}).catch(function(){});}
 function kbDel(name){fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).catch(function(){});}
-function kbClear(){fetch(SB+'/kinder',{method:'DELETE',headers:sbh()}).catch(function(){});}
+function kbClear(){fetch(SB+'/kinder?name=not.is.null',{method:'DELETE',headers:sbh()}).catch(function(){});}
 function kbLoad(cb){
   fetch(SB+'/kinder?select=*&order=name.asc',{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
@@ -745,9 +745,10 @@ function toggleDone(id){
 }
 function clearEntries(){
   var alle=getEntries();
-  if(alle.length===0){alert('Keine Sonder-Abholungen zum Löschen.');return;}
-  if(!confirm('Alle '+alle.length+' Sonder-Abholungen löschen?'))return;
+  if(alle.length===0){alert('Keine Einträge zum Löschen.');return;}
+  if(!confirm('Alle '+alle.length+' Einträge löschen?'))return;
   saveEntries([]);
+  fetch(SB+'/entries?id=not.is.null',{method:'DELETE',headers:sbh()}).catch(function(){});
   lSub(2);
   renderListe();
 }
@@ -830,9 +831,9 @@ function alleKinderLoeschen(){
   var k=getKinder();
   if(k.length===0){alert('Keine Kinder vorhanden.');return;}
   if(!confirm('Alle '+k.length+' Kinder wirklich loeschen?'))return;
-  saveKinder([]);
+  localStorage.removeItem('pd_kinder');
   kbClear();
-  renderAdmin();
+  setTimeout(function(){renderAdmin();},500);
 }
 
 // ── Eltern Tag ──
