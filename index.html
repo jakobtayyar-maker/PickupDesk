@@ -147,6 +147,13 @@ select.inp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.
 button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow,.pick-entry{
   touch-action:manipulation;cursor:pointer;
 }
+
+.dsgvo-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:16px}
+.dsgvo-modal{background:#fff;border-radius:14px;max-width:500px;width:100%;max-height:85vh;overflow-y:auto;padding:24px;position:relative}
+.dsgvo-modal h2{font-size:18px;font-weight:800;margin-bottom:12px}
+.dsgvo-modal h3{font-size:14px;font-weight:700;margin-top:16px;margin-bottom:6px}
+.dsgvo-modal p{font-size:12px;line-height:1.7;color:#444;margin-bottom:8px}
+.dsgvo-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:8px;border:1px solid #e5e5e5;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -191,7 +198,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       <button class="ctabtn-o" onclick="openApp('pin')" id="t-cb2">Betreuer-Login</button>
     </div>
   </div>
-  <div class="lfoot">© 2025 PickupDesk · Grundschule am Hengstbach</div>
+  <div class="lfoot">© 2025 PickupDesk · Grundschule am Hengstbach · <a href="#" onclick="document.getElementById('dsgvo-overlay').style.display='flex';return false;" style="color:var(--g);text-decoration:underline;font-weight:600">Datenschutzerklärung</a></div>
 </div>
 
 <!-- ═══════ APP ═══════ -->
@@ -1010,5 +1017,39 @@ document.addEventListener('DOMContentLoaded',function(){
   for(var i=0;i<b.length;i++){b[i].addEventListener('touchend',function(e){e.preventDefault();this.click();});}
 });
 </script>
+
+<div class="dsgvo-overlay" id="dsgvo-overlay" onclick="if(event.target===this)this.style.display='none'">
+  <div class="dsgvo-modal">
+    <button class="dsgvo-close" onclick="document.getElementById('dsgvo-overlay').style.display='none'">✕</button>
+    <h2>🔒 Datenschutzerklärung</h2>
+    <p><b>Verantwortlicher:</b> Grundschule am Hengstbach</p>
+
+    <h3>1. Zweck der Datenverarbeitung</h3>
+    <p>Die App PickupDesk dient der digitalen Erfassung von Abholzeiten der Schülerinnen und Schüler. Die erhobenen Daten werden ausschließlich zur Organisation der Abholung im Rahmen der Schulbetreuung verwendet.</p>
+
+    <h3>2. Erhobene Daten</h3>
+    <p>Vorname und Nachname des Kindes, Klasse, gewünschte Abholzeit, Name der abholenden Person sowie ggf. ein Hinweis. Es werden keine Kontaktdaten, Adressen oder sonstige personenbezogene Daten erhoben.</p>
+
+    <h3>3. Rechtsgrundlage</h3>
+    <p>Die Verarbeitung erfolgt auf Grundlage Ihrer Einwilligung gemäß Art. 6 Abs. 1 lit. a DSGVO. Die Einwilligung kann jederzeit mit Wirkung für die Zukunft widerrufen werden.</p>
+
+    <h3>4. Speicherung und Löschung</h3>
+    <p>Alle Daten werden täglich um Mitternacht automatisch gelöscht. Es erfolgt keine dauerhafte Speicherung personenbezogener Daten. Die Daten werden im Browser (localStorage) sowie ggf. in einer verschlüsselten Datenbank (Supabase) gespeichert.</p>
+
+    <h3>5. Weitergabe an Dritte</h3>
+    <p>Eine Weitergabe der Daten an Dritte erfolgt nicht. Die Daten sind ausschließlich für die Betreuer der Grundschule am Hengstbach einsehbar.</p>
+
+    <h3>6. Ihre Rechte</h3>
+    <p>Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO), Einschränkung der Verarbeitung (Art. 18 DSGVO) sowie Widerspruch gegen die Verarbeitung (Art. 21 DSGVO). Zur Ausübung Ihrer Rechte wenden Sie sich an die Schulleitung.</p>
+
+    <h3>7. Keine KI-Verarbeitung</h3>
+    <p>Es findet keine automatisierte Entscheidungsfindung oder Verarbeitung durch künstliche Intelligenz statt. Die Daten werden ausschließlich von den autorisierten Betreuern eingesehen.</p>
+
+    <h3>8. Datensicherheit</h3>
+    <p>Die Verbindung zur Website ist SSL-verschlüsselt (HTTPS). Der Zugang zur Betreuerliste ist durch einen PIN-Code geschützt. Der Admin-Bereich erfordert einen separaten Zugangscode.</p>
+
+    <p style="margin-top:16px;font-size:11px;color:#999">Stand: Juni 2025</p>
+  </div>
+</div>
 </body>
 </html>
