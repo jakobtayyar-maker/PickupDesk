@@ -271,6 +271,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
             <input class="inp" type="text" id="s-nn" placeholder="Nachname">
             <div class="msg msg-err" id="s-err"></div>
             <button class="btn btn-d" onclick="suchen()" id="t-btn-suchen">Eintrag suchen</button>
+            <div id="s-results" style="display:none;margin-top:10px"></div>
             <div id="s-found" style="display:none;margin-top:10px">
               <div class="msg msg-inf" id="s-info" style="display:block"></div>
               <div id="s-locked" class="msg msg-err" style="display:none">Kind wurde bereits als abgeholt markiert.</div>
@@ -313,7 +314,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       <div class="badge" id="t-badge">🏫 Grundschule am Hengstbach</div>
       <div class="dstrip" id="t-dstrip">🔒 Liste wird täglich um Mitternacht gelöscht.</div>
       <div class="days" id="b-days">
-        <button class="day on" onclick="setDay('mo')">Mo</button>
+        <button class="day" onclick="setDay('mo')">Mo</button>
         <button class="day" onclick="setDay('di')">Di</button>
         <button class="day" onclick="setDay('mi')">Mi</button>
         <button class="day" onclick="setDay('do')">Do</button>
@@ -376,7 +377,7 @@ var SB='https://rqkdfjkywbfimswwtvwh.supabase.co/rest/v1';
 var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxa2Rmamt5d2JmaW1zd3d0dndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzc4NTYsImV4cCI6MjA5NTY1Mzg1Nn0.JlimK_1urpPcyyZtww0WZl9z_AvfKwKEn1rft-5Lmuo';
 function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};}
 var SCHOOL='Grundschule am Hengstbach';
-var currentDay='mo';
+var currentDay='';
 var gefundenId=null;
 var adminLoggedIn=false;
 var FARBEN=[{bg:'#D8F3DC',fg:'#1B4332'},{bg:'#FEF3C7',fg:'#78350F'},{bg:'#DBEAFE',fg:'#1E3A5F'},{bg:'#FCE7F3',fg:'#831843'},{bg:'#EDE9FE',fg:'#4C1D95'},{bg:'#FFEDD5',fg:'#7C2D12'}];
@@ -457,6 +458,7 @@ function melden(){
   var zeit=document.getElementById('e-zeit').value;
   var abhol=document.getElementById('e-abhol').value.trim();
   var hw='';
+  if(!elternDay){show('e-err','Bitte Wochentag auswählen.');return;}
   if(!v){show('e-err','Bitte Vorname eingeben.');return;}
   if(!n){show('e-err','Bitte Nachname eingeben.');return;}
   if(!zeit){show('e-err','Bitte Abholzeit wählen.');return;}
@@ -477,7 +479,7 @@ function melden(){
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
-  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay,{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
+  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -488,6 +490,7 @@ function melden(){
 function suchen(){
   hide('s-err');
   document.getElementById('s-found').style.display='none';
+  document.getElementById('s-results').style.display='none';
   gefundenId=null;
   var v=document.getElementById('s-vn').value.trim();
   var n=document.getElementById('s-nn').value.trim();
@@ -495,20 +498,26 @@ function suchen(){
   var name=v+' '+n;
   var raw=localStorage.getItem('pd_entries');
   var entries=raw?JSON.parse(raw):[];
+  var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
   var found=null;
   for(var i=0;i<entries.length;i++){
     if(entries[i].name.toLowerCase()===name.toLowerCase()){found=entries[i];break;}
   }
   if(!found){show('s-err','Kein Eintrag für "'+name+'" gefunden.');return;}
-  gefundenId=found.id;
-  var meta=[found.abhol].filter(Boolean).join(' ');
+  selectEntry(found);
+}
+
+function selectEntry(entry){
   var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
-  show('s-info','<b>'+found.name+'</b> — '+(tage[found.tag]||'')+' '+found.zeit+' Uhr'+(meta?' · '+meta:''));
-  document.getElementById('s-zeit').value=found.zeit||'';
-  document.getElementById('s-abhol').value=found.abhol||'';
+  gefundenId=entry.id;
+  document.getElementById('s-results').style.display='none';
+  var meta=entry.abhol?' \u00b7 '+entry.abhol:'';
+  show('s-info','<b>'+entry.name+'</b> — '+(tage[entry.tag]||'?')+' '+entry.zeit+' Uhr'+meta);
+  document.getElementById('s-zeit').value=entry.zeit||'';
+  document.getElementById('s-abhol').value=entry.abhol||'';
   document.getElementById('s-found').style.display='block';
-  document.getElementById('s-locked').style.display=found.done?'block':'none';
-  document.getElementById('s-edit').style.display=found.done?'none':'block';
+  document.getElementById('s-locked').style.display=entry.done?'block':'none';
+  document.getElementById('s-edit').style.display=entry.done?'none':'block';
 }
 
 function aendern(){
@@ -601,6 +610,15 @@ function renderListe(){
   kbLoad(function(){sbLoad(function(){doRenderListe();});});
 }
 function doRenderListe(){
+  if(!currentDay){
+    document.getElementById('s-tot').textContent='–';
+    document.getElementById('s-open').textContent='–';
+    document.getElementById('s-done').textContent='–';
+    document.getElementById('list-alle').innerHTML='<div class="empty">Bitte Wochentag wählen.</div>';
+    document.getElementById('list-frueh').innerHTML='<div class="empty">Bitte Wochentag wählen.</div>';
+    document.getElementById('list-abgeholt').innerHTML='';
+    return;
+  }
   var search=(document.getElementById('l-search').value||'').toLowerCase();
 
   // "Alle Kinder" = Admin-Liste mit Abhak-Status aus Einträgen
@@ -810,16 +828,16 @@ function doRenderAdmin(){
 
 function alleKinderLoeschen(){
   var k=getKinder();
-  if(k.length===0){window.alert('Keine Kinder vorhanden.');return;}
-  if(!window.confirm('Alle '+k.length+' Kinder loeschen?'))return;
-  localStorage.removeItem('pd_kinder');
+  if(k.length===0){alert('Keine Kinder vorhanden.');return;}
+  if(!confirm('Alle '+k.length+' Kinder wirklich loeschen?'))return;
+  saveKinder([]);
   kbClear();
   renderAdmin();
 }
 
 // ── Eltern Tag ──
-var elternDay='mo';
-var suchenDay='mo';
+var elternDay='';
+var suchenDay='';
 function eDay(d){
   elternDay=d;
   var btns=document.getElementById('e-days').querySelectorAll('.day');
@@ -837,12 +855,7 @@ function sDay(d){
   }
 }
 
-// Auto-set eltern day to today
-(function(){
-  var dm=[null,'mo','di','mi','do','fr',null];
-  var t=new Date().getDay();
-  if(dm[t]){eDay(dm[t]);sDay(dm[t]);}
-})();
+// Kein Tag vorausgewählt - Eltern müssen wählen
 
 // ── Init ──
 
