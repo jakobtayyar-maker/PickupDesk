@@ -479,7 +479,7 @@ function melden(){
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
-  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
+  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay,{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -490,7 +490,6 @@ function melden(){
 function suchen(){
   hide('s-err');
   document.getElementById('s-found').style.display='none';
-  document.getElementById('s-results').style.display='none';
   gefundenId=null;
   var v=document.getElementById('s-vn').value.trim();
   var n=document.getElementById('s-nn').value.trim();
@@ -499,12 +498,32 @@ function suchen(){
   var raw=localStorage.getItem('pd_entries');
   var entries=raw?JSON.parse(raw):[];
   var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
-  var found=null;
+  var matches=[];
   for(var i=0;i<entries.length;i++){
-    if(entries[i].name.toLowerCase()===name.toLowerCase()){found=entries[i];break;}
+    if(entries[i].name.toLowerCase()===name.toLowerCase())matches.push(entries[i]);
   }
-  if(!found){show('s-err','Kein Eintrag für "'+name+'" gefunden.');return;}
-  selectEntry(found);
+  if(matches.length===0){show('s-err','Kein Eintrag für "'+name+'" gefunden.');return;}
+  if(matches.length===1){selectEntry(matches[0]);return;}
+  // Mehrere Tage: Auswahl zeigen
+  var html='<div style="font-size:13px;font-weight:700;margin-bottom:8px">'+matches.length+' Einträge — welchen ändern?</div>';
+  for(var j=0;j<matches.length;j++){
+    var m=matches[j];
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:10px 12px;margin-bottom:5px;cursor:pointer" data-eid="'+m.id+'" class="pick-entry">';
+    html+='<div style="font-size:13px;font-weight:700">'+(tage[m.tag]||m.tag)+'</div>';
+    html+='<div style="font-size:18px;font-weight:800;color:#1A6644">'+m.zeit+'</div>';
+    html+='</div>';
+  }
+  show('s-info',html);
+  var box=document.getElementById('s-info');
+  var picks=box.querySelectorAll('.pick-entry');
+  for(var p=0;p<picks.length;p++){
+    picks[p].addEventListener('click',function(){
+      var eid=this.getAttribute('data-eid');
+      for(var q=0;q<matches.length;q++){
+        if(String(matches[q].id)===eid){selectEntry(matches[q]);break;}
+      }
+    });
+  }
 }
 
 function selectEntry(entry){
