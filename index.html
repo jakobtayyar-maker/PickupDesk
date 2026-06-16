@@ -198,7 +198,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       <button class="ctabtn-o" onclick="openApp('pin')" id="t-cb2">Betreuer-Login</button>
     </div>
   </div>
-  <div class="lfoot">© 2025 PickupDesk · Grundschule am Hengstbach · <a href="#" onclick="document.getElementById('dsgvo-overlay').style.display='flex';return false;" style="color:var(--g);text-decoration:underline;font-weight:600">Datenschutzerklärung</a></div>
+  <div class="lfoot">© 2025 PickupDesk · Grundschule am Hengstbach<br><a href="#" onclick="document.getElementById('dsgvo-overlay').style.display='flex';return false;" style="color:var(--g);text-decoration:underline;font-weight:600">Datenschutzerklärung</a> · <a href="#" onclick="document.getElementById('impressum-overlay').style.display='flex';return false;" style="color:var(--g);text-decoration:underline;font-weight:600">Impressum</a></div>
 </div>
 
 <!-- ═══════ APP ═══════ -->
@@ -418,7 +418,18 @@ function sbLoad(cb){
 function saveEntries(l){ss('pd_entries',l);}
 
 // Mitternacht
-(function(){var n=new Date(),ms=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1)-n;setTimeout(function(){localStorage.removeItem('pd_entries');},ms);})();
+(function(){
+  var n=new Date(),ms=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1)-n;
+  setTimeout(function(){
+    var tage=['','mo','di','mi','do','fr',''];
+    var gestern=tage[new Date().getDay()===0?5:new Date().getDay()-1]||'';
+    if(!gestern)return;
+    var entries=JSON.parse(localStorage.getItem('pd_entries')||'[]');
+    var keep=entries.filter(function(e){return e.tag!==gestern;});
+    localStorage.setItem('pd_entries',JSON.stringify(keep));
+    fetch(SB+'/entries?tag=eq.'+gestern,{method:'DELETE',headers:sbh()}).catch(function(){});
+  },ms);
+})();
 
 // ── Navigation ──
 function goLand(){document.getElementById('pg-land').style.display='';document.getElementById('pg-app').style.display='none';}
@@ -1022,6 +1033,7 @@ function bulkAdd(){
 }
 
 document.addEventListener('DOMContentLoaded',function(){
+  if(!localStorage.getItem('cookie_ok'))document.getElementById('cookie-banner').style.display='block';
   var b=document.querySelectorAll('button,.tab,.stab,.day,.crow');
   for(var i=0;i<b.length;i++){b[i].addEventListener('touchend',function(e){e.preventDefault();this.click();});}
 });
@@ -1032,6 +1044,8 @@ document.addEventListener('DOMContentLoaded',function(){
     <button class="dsgvo-close" onclick="document.getElementById('dsgvo-overlay').style.display='none'">✕</button>
     <h2>🔒 Datenschutzerklärung</h2>
     <p><b>Verantwortlicher:</b> Grundschule am Hengstbach</p>
+
+    <p><b>Kontakt:</b> [E-Mail der Schule]<br><b>Datenschutzbeauftragter:</b> [Name DSB, E-Mail DSB]</p>
 
     <h3>1. Zweck der Datenverarbeitung</h3>
     <p>Die App PickupDesk dient der digitalen Erfassung von Abholzeiten der Schülerinnen und Schüler. Die erhobenen Daten werden ausschließlich zur Organisation der Abholung im Rahmen der Schulbetreuung verwendet.</p>
@@ -1054,10 +1068,48 @@ document.addEventListener('DOMContentLoaded',function(){
     <h3>7. Keine KI-Verarbeitung</h3>
     <p>Es findet keine automatisierte Entscheidungsfindung oder Verarbeitung durch künstliche Intelligenz statt. Die Daten werden ausschließlich von den autorisierten Betreuern eingesehen.</p>
 
-    <h3>8. Datensicherheit</h3>
+    <h3>8. Beschwerderecht</h3>
+    <p>Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren (Art. 77 DSGVO). Die zuständige Aufsichtsbehörde ist der Hessische Beauftragte für Datenschutz und Informationsfreiheit.</p>
+
+    <h3>9. Datensicherheit</h3>
     <p>Die Verbindung zur Website ist SSL-verschlüsselt (HTTPS). Der Zugang zur Betreuerliste ist durch einen PIN-Code geschützt. Der Admin-Bereich erfordert einen separaten Zugangscode.</p>
 
-    <p style="margin-top:16px;font-size:11px;color:#999">Stand: Juni 2025</p>
+    <p style="margin-top:16px;font-size:11px;color:#999">Stand: Juni 2026</p>
+  </div>
+</div>
+
+<div class="dsgvo-overlay" id="impressum-overlay" onclick="if(event.target===this)this.style.display='none'">
+  <div class="dsgvo-modal">
+    <button class="dsgvo-close" onclick="document.getElementById('impressum-overlay').style.display='none'">✕</button>
+    <h2>Impressum</h2>
+    <h3>Angaben gemäß § 5 TMG</h3>
+    <p><b>Grundschule am Hengstbach</b><br>
+    [Adresse der Schule]<br>
+    [PLZ Ort]</p>
+
+    <h3>Vertreten durch</h3>
+    <p>[Name der Schulleitung]</p>
+
+    <h3>Kontakt</h3>
+    <p>Telefon: [Telefonnummer]<br>
+    E-Mail: [E-Mail der Schule]</p>
+
+    <h3>Verantwortlich für den Inhalt</h3>
+    <p>Jakob Tayyar<br>
+    E-Mail: jakobtayyar@gmail.com</p>
+
+    <h3>Datenschutzbeauftragter</h3>
+    <p>[Name des Datenschutzbeauftragten der Schule]<br>
+    E-Mail: [E-Mail DSB]</p>
+
+    <p style="margin-top:16px;font-size:11px;color:#999">Die Angaben in eckigen Klammern müssen vor dem Einsatz ergänzt werden.</p>
+  </div>
+</div>
+
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0C1F15;color:#fff;padding:14px 16px;z-index:998;font-size:12px;line-height:1.6">
+  <div style="max-width:500px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">Diese Website speichert Daten lokal in Ihrem Browser (localStorage) zur Verwaltung der Abholzeiten. Es werden keine Tracking-Cookies verwendet.</div>
+    <button onclick="localStorage.setItem('cookie_ok','1');document.getElementById('cookie-banner').style.display='none'" style="background:var(--g);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap">Verstanden</button>
   </div>
 </div>
 </body>
