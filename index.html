@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rqkdfjkywbfimswwtvwh.supabase.co; img-src 'self' data:; font-src 'self'">
+<meta name="referrer" content="no-referrer">
 <title>PickupDesk – Grundschule am Hengstbach</title>
 <style>
 :root{--g:#1A6644;--gl:#E4F2EB;--gm:#9ECFB5;--r:#B91C1C;--rl:#FEE2E2;--am:#B45309;--al:#FEF3C7;--bg:#F7F6F2;--ink:#111;--ink2:#555;--ink3:#999;--brd:#e5e5e5;--sf:#fff;--sh:0 1px 4px rgba(0,0,0,.06)}
@@ -393,6 +395,7 @@ var FARBEN=[{bg:'#D8F3DC',fg:'#1B4332'},{bg:'#FEF3C7',fg:'#78350F'},{bg:'#DBEAFE
 // ── Speicher ──
 function ls(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function ssConsent(k,v){if(localStorage.getItem('cookie_ok')||k==='cookie_ok'){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}}
 function getKinder(){return ls('pd_kinder')||[];}
 function saveKinder(l){ss('pd_kinder',l);}
 function getEntries(){return ls('pd_entries')||[];}
