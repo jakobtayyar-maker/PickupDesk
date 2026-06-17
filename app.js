@@ -1,3 +1,4 @@
+
 // PIN wird serverseitig geprüft
 // Admin-PIN wird serverseitig geprüft
 // API calls gehen über /api/ — keine Keys im Frontend
@@ -226,11 +227,16 @@ function login(){
   var box=document.getElementById('bc');
   if(!box.classList.contains('on')){show('p-err','Bitte Datenschutz zustimmen.');return;}
   var pin=document.getElementById('pin').value.trim();
-  if(pin!==PIN){show('p-err','Falscher PIN.');return;}
-  document.getElementById('tab-liste').style.display='';
-  document.getElementById('tab-admin').style.display='';
-  
-  go('liste');
+  if(!pin){show('p-err','Bitte PIN eingeben.');return;}
+  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,type:'betreuer'})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(!d.ok){show('p-err','Falscher PIN.');return;}
+    document.getElementById('tab-liste').style.display='';
+    document.getElementById('tab-admin').style.display='';
+    go('liste');
+  })
+  .catch(function(){show('p-err','Verbindungsfehler.');});
 }
 
 // ── Tage ──
@@ -406,9 +412,14 @@ function adminCheck(){
   if(adminLoggedIn){go('admin');return;}
   var code=prompt('Admin-Code eingeben:');
   if(!code)return;
-  if(code!==ADMIN_PIN){alert('Falscher Admin-Code.');return;}
-  adminLoggedIn=true;
-  go('admin');
+  fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:code,type:'admin'})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(!d.ok){alert('Falscher Admin-Code.');return;}
+    adminLoggedIn=true;
+    go('admin');
+  })
+  .catch(function(){alert('Verbindungsfehler.');});
 }
 
 function kindHinzu(){
