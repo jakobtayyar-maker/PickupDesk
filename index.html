@@ -312,7 +312,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       </div>
       <div class="card">
         <label class="fl" id="t-fl-pin">PIN-Code</label>
-        <input class="inp" type="password" id="pin" placeholder="PIN eingeben" maxlength="6">
+        <input class="inp" type="password" id="pin" placeholder="PIN eingeben" inputmode="numeric" maxlength="20" autocomplete="off">
         <div class="msg msg-err" id="p-err"></div>
         <button class="btn btn-d" onclick="login()" id="t-btn-login">Einloggen</button>
       </div>
@@ -1098,4 +1098,3 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 </body>
-</html>
