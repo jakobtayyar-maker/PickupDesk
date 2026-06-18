@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rqkdfjkywbfimswwtvwh.supabase.co; img-src 'self' data:; font-src 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>PickupDesk – Grundschule am Hengstbach</title>
 <style>
@@ -421,16 +422,26 @@ function saveEntries(l){ss('pd_entries',l);}
 
 // Mitternacht
 (function(){
-  var n=new Date(),ms=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1)-n;
-  setTimeout(function(){
-    var tage=['','mo','di','mi','do','fr',''];
-    var gestern=tage[new Date().getDay()===0?5:new Date().getDay()-1]||'';
-    if(!gestern)return;
+  // Tages-Loeschung: Nur der GENAU abgelaufene Tag wird geloescht.
+  // Vorgeplante Tage (z.B. naechste Woche schon eingetragen) bleiben erhalten.
+  var tagMap=['','mo','di','mi','do','fr',''];
+  var heute=new Date();
+  var heuteStr=heute.getFullYear()+'-'+(heute.getMonth()+1)+'-'+heute.getDate();
+  var letzterTag=localStorage.getItem('pd_letzterTag');
+  var letztesDatum=localStorage.getItem('pd_letztesDatum');
+
+  // Wenn ein neuer Kalendertag begonnen hat: nur den zuletzt aktiven Wochentag loeschen
+  if(letztesDatum && letztesDatum!==heuteStr && letzterTag){
     var entries=JSON.parse(localStorage.getItem('pd_entries')||'[]');
-    var keep=entries.filter(function(e){return e.tag!==gestern;});
+    var keep=entries.filter(function(e){return e.tag!==letzterTag;});
     localStorage.setItem('pd_entries',JSON.stringify(keep));
-    fetch(SB+'/entries?tag=eq.'+gestern,{method:'DELETE',headers:sbh()}).catch(function(){});
-  },ms);
+    fetch(SB+'/entries?tag=eq.'+letzterTag,{method:'DELETE',headers:sbh()}).catch(function(){});
+  }
+
+  // Heutigen Tag merken (nur Mo-Fr, damit am Wochenende nichts faelschlich geloescht wird)
+  localStorage.setItem('pd_letztesDatum',heuteStr);
+  var heuteTag=tagMap[heute.getDay()]||'';
+  if(heuteTag)localStorage.setItem('pd_letzterTag',heuteTag);
 })();
 
 // ── Navigation ──
