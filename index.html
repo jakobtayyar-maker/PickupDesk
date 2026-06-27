@@ -156,13 +156,86 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 .dsgvo-modal h3{font-size:14px;font-weight:700;margin-top:16px;margin-bottom:6px}
 .dsgvo-modal p{font-size:12px;line-height:1.7;color:#444;margin-bottom:8px}
 .dsgvo-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:8px;border:1px solid #e5e5e5;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+
+/* Schulauswahl */
+#pg-school{display:none;min-height:100vh;background:#F7F9F7}
+.sch-wrap{max-width:480px;margin:0 auto;padding:0 16px 40px}
+.sch-hero{background:linear-gradient(145deg,#0C1F15 0%,#1A6644 100%);padding:40px 24px 32px;text-align:center;margin-bottom:0}
+.sch-logo{font-size:13px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:16px}
+.sch-hero h1{font-size:32px;font-weight:800;color:#fff;line-height:1.1;margin-bottom:8px}
+.sch-hero h1 span{color:#6EE7A8}
+.sch-hero p{font-size:14px;color:rgba(255,255,255,.6);line-height:1.5}
+.sch-body{background:#F7F9F7;padding:20px 0}
+.sch-label{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:10px;padding:0 4px}
+.sch-search-wrap{position:relative;margin-bottom:14px}
+.sch-search{width:100%;padding:13px 14px 13px 40px;background:#fff;border:1.5px solid #E2E8F0;border-radius:10px;font-size:15px;font-family:inherit;outline:none;color:#0F172A;box-sizing:border-box}
+.sch-search:focus{border-color:#1A6644}
+.sch-search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+.sch-card{background:#fff;border:1.5px solid #E2E8F0;border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;touch-action:manipulation;transition:border-color .15s,box-shadow .15s}
+.sch-card:active,.sch-card:hover{border-color:#1A6644;box-shadow:0 2px 12px rgba(26,102,68,.12)}
+.sch-icon{width:42px;height:42px;border-radius:10px;background:#E4F2EB;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.sch-info{flex:1}
+.sch-name{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:2px}
+.sch-city{font-size:12px;color:#888}
+.sch-arrow{font-size:18px;color:#1A6644;font-weight:800}
+.sch-empty{text-align:center;padding:32px 16px;color:#aaa;font-size:13px}
+.sch-master{text-align:center;padding:24px 0 8px;font-size:12px;color:#ccc;cursor:pointer;touch-action:manipulation}
+.sch-master:hover{color:#888}
+/* Master panel */
+#pg-master{display:none;min-height:100vh;background:#F7F9F7}
+.master-wrap{max-width:480px;margin:0 auto;padding:16px}
+.master-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:16px 0 12px;border-bottom:1px solid #E2E8F0}
+.master-back{background:none;border:none;font-size:22px;cursor:pointer;color:#1A6644;touch-action:manipulation}
+.master-title{font-size:20px;font-weight:800;color:#0F172A}
 </style>
 </head>
 <body>
 
 <!-- LANDING -->
 <div style="display:flex;justify-content:flex-end;padding:6px 16px 0"><span style="font-size:13px;margin-right:5px">🌐</span><select id="lang-sel" style="padding:4px 20px 4px 8px;border:1px solid #e5e5e5;border-radius:6px;font-size:11px;font-weight:600;color:#666;background:#fff;cursor:pointer;outline:none;font-family:inherit" onchange="setLang(this.value)"><option value="de">Deutsch</option><option value="tr">Türkçe</option><option value="ar">العربية</option><option value="ru">Русский</option><option value="en">English</option><option value="fr">Français</option><option value="pl">Polski</option><option value="it">Italiano</option><option value="es">Español</option><option value="ro">Română</option><option value="uk">Українська</option><option value="hr">Hrvatski</option><option value="fa">فارسی</option></select></div>
-<div id="pg-land">
+
+<!-- SCHULAUSWAHL -->
+<div id="pg-school">
+  <div class="sch-hero">
+    <div class="sch-logo">PickupDesk</div>
+    <h1>Wählen Sie<br><span>Ihre Schule</span></h1>
+    <p>Abholzeiten digital verwalten —<br>sicher, einfach, mehrsprachig.</p>
+  </div>
+  <div class="sch-body">
+    <div class="sch-wrap">
+      <div class="sch-label">Schulen</div>
+      <div class="sch-search-wrap">
+        <span class="sch-search-icon">🔍</span>
+        <input class="sch-search" type="text" id="school-search" placeholder="Schule suchen..." oninput="filterSchulen()" autocomplete="off">
+      </div>
+      <div id="school-list-box"></div>
+      <div class="sch-master" onclick="masterLogin()">⚙ Master-Admin</div>
+    </div>
+  </div>
+</div>
+
+<!-- MASTER ADMIN -->
+<div id="pg-master">
+  <div class="master-wrap">
+    <div class="master-header">
+      <button class="master-back" onclick="showSchoolPage()">←</button>
+      <div class="master-title">Master-Admin</div>
+    </div>
+    <div class="card">
+      <label class="fl">Schulname</label>
+      <input class="inp" type="text" id="m-name" placeholder="z.B. Grundschule am Hengstbach">
+      <label class="fl">Stadt</label>
+      <input class="inp" type="text" id="m-city" placeholder="z.B. Frankfurt">
+      <label class="fl">Schul-ID (nur Kleinbuchstaben)</label>
+      <input class="inp" type="text" id="m-id" placeholder="z.B. hengstbach">
+      <button class="btn btn-g" onclick="addSchule()" style="margin-top:12px">Schule hinzufügen</button>
+      <div id="m-ok" class="msg msg-ok"></div>
+    </div>
+    <div id="master-school-list" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<div id="pg-land" style="display:none">
   <nav class="lnav">
     <div class="brand">
       <div class="brand-mark">
@@ -179,7 +252,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       <h1 id="t-h1">Abholzeiten<br><em>einfach</em> verwalten.</h1>
       <p class="hero-sub" id="t-hsub">Eltern melden die Abholzeit — Betreuer sehen sofort eine übersichtliche Liste.</p>
       <div class="hero-actions">
-        <button class="ha-main" onclick="openApp('eltern')" id="t-hb1">Als Elternteil starten</button>
+        <button class="ha-main" onclick="showSchoolPage()" id="t-hb1">Als Elternteil starten</button>
         <button class="ha-sec" onclick="openApp('pin')" id="t-hb2">Betreuer-Login</button>
       </div>
     </div>
@@ -196,7 +269,7 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
     <h3 id="t-ctah">Jetzt kostenlos testen</h3>
     <p id="t-ctap">Direkt im Browser — auf jedem Handy und Computer.</p>
     <div class="cta-btns">
-      <button class="ctabtn-g" onclick="openApp('eltern')" id="t-cb1">Als Elternteil starten</button>
+      <button class="ctabtn-g" onclick="showSchoolPage()" id="t-cb1">Als Elternteil starten</button>
       <button class="ctabtn-o" onclick="openApp('pin')" id="t-cb2">Betreuer-Login</button>
     </div>
   </div>
@@ -1045,6 +1118,150 @@ document.addEventListener('DOMContentLoaded',function(){
   var b=document.querySelectorAll('button,.tab,.stab,.day,.crow');
   for(var i=0;i<b.length;i++){b[i].addEventListener('touchend',function(e){e.preventDefault();this.click();});}
 });
+
+// ── Schulauswahl ──
+var aktiveSchule = '';
+var aktiveSchuleName = '';
+
+function getSchulen(){
+  var def = [
+    {id:'hengstbach', name:'Grundschule am Hengstbach', city:'Frankfurt', icon:'🏫'},
+    {id:'goethe', name:'Goethe-Grundschule', city:'Frankfurt', icon:'📚'},
+    {id:'schiller', name:'Schillerschule', city:'Offenbach', icon:'🎓'}
+  ];
+  return ls('pd_schulen') || def;
+}
+
+function saveSchulen(s){ ss('pd_schulen', s); }
+
+function showSchoolPage(){
+  document.getElementById('pg-school').style.display='block';
+  document.getElementById('pg-land').style.display='none';
+  document.getElementById('pg-master').style.display='none';
+  renderSchulen();
+}
+
+function renderSchulen(filter){
+  var schulen = getSchulen();
+  var box = document.getElementById('school-list-box');
+  if(!box) return;
+  if(filter) schulen = schulen.filter(function(s){
+    return s.name.toLowerCase().indexOf(filter.toLowerCase())>=0 ||
+           s.city.toLowerCase().indexOf(filter.toLowerCase())>=0;
+  });
+  if(!schulen.length){
+    box.innerHTML='<div class="sch-empty">Keine Schule gefunden.</div>';
+    return;
+  }
+  var html='';
+  for(var i=0;i<schulen.length;i++){
+    var s=schulen[i];
+    html+='<div class="sch-card" data-sid="'+s.id+'" data-sname="'+s.name+'">';
+    html+='<div class="sch-icon">'+(s.icon||'🏫')+'</div>';
+    html+='<div class="sch-info"><div class="sch-name">'+s.name+'</div><div class="sch-city">'+s.city+'</div></div>';
+    html+='<div class="sch-arrow">›</div>';
+    html+='</div>';
+  }
+  box.innerHTML=html;
+  var cards=box.querySelectorAll('.sch-card');
+  for(var j=0;j<cards.length;j++){
+    cards[j].addEventListener('click',function(){
+      aktiveSchule=this.getAttribute('data-sid');
+      aktiveSchuleName=this.getAttribute('data-sname');
+      localStorage.setItem('pd_aktiveSchule',aktiveSchule);
+      localStorage.setItem('pd_aktiveSchuleName',aktiveSchuleName);
+      document.getElementById('pg-school').style.display='none';
+      document.getElementById('pg-land').style.display='none';
+      document.getElementById('pg-app').style.display='block';
+      // Reset und zur Eltern-Ansicht
+      var views=document.querySelectorAll('.view');
+      for(var i=0;i<views.length;i++)views[i].className='view';
+      var tabs=document.querySelectorAll('.tab');
+      for(var i=0;i<tabs.length;i++)tabs[i].className='tab';
+      var tab=document.getElementById('tab-eltern');
+      if(tab)tab.className='tab on';
+      var view=document.getElementById('v-eltern');
+      if(view)view.className='view on';
+    });
+    cards[j].addEventListener('touchend',function(ev){ev.preventDefault();this.click();});
+  }
+}
+
+function filterSchulen(){
+  renderSchulen(document.getElementById('school-search').value);
+}
+
+function masterLogin(){
+  var code=prompt('Master-Admin Code:');
+  if(!code)return;
+  sha256(code).then(function(h){
+    // Hash of "MASTER2025"
+    if(h==='c56b55c09f9baeb98baa0c89c6bbfe1e72e7a8aef2d44494cbcc9e5a1eb3b9df'){
+      document.getElementById('pg-school').style.display='none';
+      document.getElementById('pg-master').style.display='block';
+      renderMasterSchulen();
+    }else{
+      alert('Falscher Code.');
+    }
+  });
+}
+
+function addSchule(){
+  var name=document.getElementById('m-name').value.trim();
+  var city=document.getElementById('m-city').value.trim();
+  var id=document.getElementById('m-id').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(!name||!city||!id){alert('Bitte alle Felder ausfüllen.');return;}
+  var schulen=getSchulen();
+  if(schulen.find(function(s){return s.id===id;})){alert('Schul-ID bereits vorhanden.');return;}
+  schulen.push({id:id,name:name,city:city,icon:'🏫'});
+  saveSchulen(schulen);
+  document.getElementById('m-name').value='';
+  document.getElementById('m-city').value='';
+  document.getElementById('m-id').value='';
+  show('m-ok','✅ '+name+' hinzugefügt!');
+  setTimeout(function(){hide('m-ok');},3000);
+  renderMasterSchulen();
+}
+
+function renderMasterSchulen(){
+  var schulen=getSchulen();
+  var box=document.getElementById('master-school-list');
+  if(!box)return;
+  if(!schulen.length){box.innerHTML='<div style="text-align:center;padding:20px;color:#aaa">Keine Schulen.</div>';return;}
+  var html='';
+  for(var i=0;i<schulen.length;i++){
+    html+='<div style="background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">';
+    html+='<div><div style="font-size:14px;font-weight:700">'+schulen[i].name+'</div>';
+    html+='<div style="font-size:11px;color:#888">'+schulen[i].city+' · ID: '+schulen[i].id+'</div></div>';
+    html+='<button style="background:none;border:1px solid #E2E8F0;border-radius:6px;padding:5px 10px;cursor:pointer;color:#DC2626;font-size:12px;font-family:inherit" data-idx="'+i+'" class="del-schule">Löschen</button>';
+    html+='</div>';
+  }
+  box.innerHTML=html;
+  var dels=box.querySelectorAll('.del-schule');
+  for(var d=0;d<dels.length;d++){
+    dels[d].addEventListener('click',function(){
+      var idx=parseInt(this.getAttribute('data-idx'));
+      var s=getSchulen();
+      if(confirm(s[idx].name+' wirklich löschen?')){
+        s.splice(idx,1);saveSchulen(s);renderMasterSchulen();
+      }
+    });
+  }
+}
+
+// Init
+document.addEventListener('DOMContentLoaded',function(){
+  // Immer mit der Homepage starten
+  document.getElementById('pg-land').style.display='block';
+  document.getElementById('pg-school').style.display='none';
+  // Gespeicherte Schule laden falls vorhanden
+  var saved=localStorage.getItem('pd_aktiveSchule');
+  if(saved){
+    aktiveSchule=saved;
+    aktiveSchuleName=localStorage.getItem('pd_aktiveSchuleName')||'';
+  }
+});
+
 </script>
 
 <div class="dsgvo-overlay" id="dsgvo-overlay" onclick="if(event.target===this)this.style.display='none'">
@@ -1098,3 +1315,4 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
 </div>
 </body>
+</html>
