@@ -31,7 +31,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 /* APP */
 #pg-app{display:none;min-height:100vh;background:var(--bg)}
-.app-bar{background:var(--sf);border-bottom:1px solid var(--brd);padding:0 16px;height:48px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.app-bar{background:var(--sf);border-bottom:1px solid var(--brd);padding:10px 16px;min-height:48px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:8px}
+.app-logo{flex-shrink:0}
 .back{font-size:13px;font-weight:700;color:var(--ink2);background:none;border:none;cursor:pointer;font-family:inherit}
 .app-logo{font-size:16px;font-weight:800}.app-logo em{color:var(--g);font-style:normal}
 .live{font-size:11px;font-weight:700;color:var(--g);background:var(--gl);padding:3px 9px;border-radius:12px}
@@ -189,7 +190,13 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 .master-title{font-size:20px;font-weight:800;color:#0F172A}
 
 .app-bar{position:relative}
-.school-tag{font-size:13px;font-weight:700;color:var(--g,#1A6644);letter-spacing:.01em;background:var(--gl,#E4F2EB);padding:3px 10px;border-radius:20px;margin-top:4px;display:inline-flex;align-items:center;gap:4px}
+.school-tag{font-size:11.5px;font-weight:700;color:var(--g,#1A6644);letter-spacing:0;background:var(--gl,#E4F2EB);padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;max-width:min(220px,55vw);overflow:hidden;text-overflow:ellipsis}
+
+@media (max-width:380px){
+  .app-bar{flex-wrap:wrap;padding:8px 12px}
+  .school-tag{font-size:10.5px;max-width:200px}
+  .live{font-size:10px}
+}
 </style>
 </head>
 <body>
