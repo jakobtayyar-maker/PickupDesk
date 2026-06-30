@@ -696,8 +696,8 @@ async function login(){
   var box=document.getElementById('bc');
   if(!box.classList.contains('on')){show('p-err','Bitte Datenschutz zustimmen.');return;}
   var pin=document.getElementById('pin').value.trim();
-  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,type:'betreuer',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(){return{ok:false};});
-  if(!resp.ok){show('p-err','Falscher PIN.');return;}
+  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,type:'betreuer',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(e){return{ok:false,debug:'fetch_fehler:'+e.message};});
+  if(!resp.ok){show('p-err','Falscher PIN.'+(resp.debug?' ['+resp.debug+']':''));return;}
   document.getElementById('tab-liste').style.display='';
   document.getElementById('tab-admin').style.display='';
   
@@ -877,8 +877,8 @@ async function adminCheck(){
   if(adminLoggedIn){go('admin');return;}
   var code=prompt('Admin-Code eingeben:');
   if(!code)return;
-  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:code,type:'admin',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(){return{ok:false};});
-  if(!resp.ok){alert('Falscher Admin-Code.');return;}
+  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:code,type:'admin',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(e){return{ok:false,debug:'fetch_fehler:'+e.message};});
+  if(!resp.ok){alert('Falscher Admin-Code.'+(resp.debug?' ['+resp.debug+']':''));return;}
   adminLoggedIn=true;
   go('admin');
 }
@@ -1348,3 +1348,4 @@ function updateSchoolBadge(){
   </div>
 </div>
 </body>
+</html>
