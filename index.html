@@ -480,7 +480,8 @@ function kbPost(k){fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.str
 function kbDel(name){fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name),{method:'DELETE',headers:sbh()}).catch(function(){});}
 function kbClear(){fetch(SB+'/kinder?name=not.is.null',{method:'DELETE',headers:sbh()}).catch(function(){});}
 function kbLoad(cb){
-  fetch(SB+'/kinder?select=*&order=name.asc',{method:'GET',headers:sbh()})
+  var filter=aktiveSchule?'&schule=eq.'+encodeURIComponent(aktiveSchule):'';
+  fetch(SB+'/kinder?select=*&order=name.asc'+filter,{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){if(Array.isArray(d)){ss('pd_kinder',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
@@ -580,7 +581,7 @@ function melden(){
     return;
   }
   var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
-  var newEntry={id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay};
+  var newEntry={id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay,schule:aktiveSchule||''};
   entries.push(newEntry);
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
@@ -887,7 +888,7 @@ function kindHinzu(){
   kinder.push({name:name,klasse:kl,zeit:zeit||'15:00'});
   kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
   saveKinder(kinder);
-  kbPost({name:name,klasse:kl,zeit:zeit||'15:00'});
+  kbPost({name:name,klasse:kl,zeit:zeit||'15:00',schule:aktiveSchule||''});
   show('k-ok','✅ '+name+' hinzugefügt!');
   document.getElementById('k-vn').value='';document.getElementById('k-nn').value='';
   document.getElementById('k-kl').value='';document.getElementById('k-zeit').value='';
@@ -1101,7 +1102,7 @@ function bulkAdd(){
     if(name.indexOf(' ')<0){skipped.push(name+' (Vor- und Nachname nötig)');continue;}
     if(kinder.find(function(k){return k.name.toLowerCase()===name.toLowerCase();})){skipped.push(name+' (bereits vorhanden)');continue;}
     kinder.push({name:name,klasse:klasse,zeit:zeit});
-    kbPost({name:name,klasse:klasse,zeit:zeit});
+    kbPost({name:name,klasse:klasse,zeit:zeit,schule:aktiveSchule||''});
     added++;
   }
   kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
@@ -1166,8 +1167,15 @@ function renderSchulen(filter){
   var cards=box.querySelectorAll('.sch-card');
   for(var j=0;j<cards.length;j++){
     cards[j].addEventListener('click',function(){
-      aktiveSchule=this.getAttribute('data-sid');
-      aktiveSchuleName=this.getAttribute('data-sname');
+      var newSchule=this.getAttribute('data-sid');
+      var newSchuleName=this.getAttribute('data-sname');
+      // Wenn Schule gewechselt: lokale Daten der alten Schule löschen
+      if(newSchule!==aktiveSchule){
+        localStorage.removeItem('pd_entries');
+        localStorage.removeItem('pd_kinder');
+      }
+      aktiveSchule=newSchule;
+      aktiveSchuleName=newSchuleName;
       localStorage.setItem('pd_aktiveSchule',aktiveSchule);
       localStorage.setItem('pd_aktiveSchuleName',aktiveSchuleName);
       document.getElementById('pg-school').style.display='none';
