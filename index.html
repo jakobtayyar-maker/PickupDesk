@@ -187,6 +187,9 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 .master-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:16px 0 12px;border-bottom:1px solid #E2E8F0}
 .master-back{background:none;border:none;font-size:22px;cursor:pointer;color:#1A6644;touch-action:manipulation}
 .master-title{font-size:20px;font-weight:800;color:#0F172A}
+
+.app-bar{position:relative}
+.school-tag{font-size:13px;font-weight:700;color:var(--g,#1A6644);letter-spacing:.01em;background:var(--gl,#E4F2EB);padding:3px 10px;border-radius:20px;margin-top:4px;display:inline-flex;align-items:center;gap:4px}
 </style>
 </head>
 <body>
@@ -281,8 +284,12 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
   <div class="app-bar">
     <button class="back" onclick="goLand()">← <span id="t-back">Zurück</span></button>
     <div class="app-logo">Pickup<em>Desk</em></div>
-    <span class="live">● Live</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+      <span class="live">● Live</span>
+      <span class="school-tag">🏫 <span id="school-badge-name"></span></span>
+    </div>
   </div>
+
   <div class="tabs">
     <button class="tab on" id="tab-eltern" onclick="go('eltern')">👨‍👩‍👧 <span id="t-tab-e">Eltern</span></button>
     <button class="tab" id="tab-pin" onclick="go('pin')">🔑 <span id="t-tab-p">Login</span></button>
@@ -1180,6 +1187,7 @@ function renderSchulen(filter){
       aktiveSchuleName=newSchuleName;
       localStorage.setItem('pd_aktiveSchule',aktiveSchule);
       localStorage.setItem('pd_aktiveSchuleName',aktiveSchuleName);
+      updateSchoolBadge();
       document.getElementById('pg-school').style.display='none';
       document.getElementById('pg-land').style.display='none';
       document.getElementById('pg-app').style.display='block';
@@ -1273,8 +1281,15 @@ document.addEventListener('DOMContentLoaded',function(){
   if(saved){
     aktiveSchule=saved;
     aktiveSchuleName=localStorage.getItem('pd_aktiveSchuleName')||'';
+    updateSchoolBadge();
   }
 });
+
+
+function updateSchoolBadge(){
+  var badge=document.getElementById('school-badge-name');
+  if(badge)badge.textContent=aktiveSchuleName||aktiveSchule||'';
+}
 
 </script>
 
