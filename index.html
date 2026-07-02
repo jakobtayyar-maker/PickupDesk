@@ -464,11 +464,18 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 </div>
 
 <script>
-// PIN-Pruefung laeuft jetzt serverseitig in /api/auth
+var SCHUL_CODES={
+  'hengstbach':{pin:'ce295eba8ac815b97b0ec6b3179ce26748898f3325a9657e5cdd0cdaf0de5e04',admin:'604fbb5dd5827ce046e0fe49aa36e5c3de2c0e31d5577bba626d7741ad5211b6'},
+  'goethe':{pin:'7b17e52e7e27a3c2e6a8dfd41bbff0bbeeaa11e31e87fbbce5abb9a32db44b9f',admin:'b8d8c3f4c7c85d3c3f81fa40e8e14e19e3aba6a8c0a1a7c0ce23e18b3c1e0d4'},
+  'schiller':{pin:'91ecbb18d77e46118c6ca52e843e9728763b472dc841255967281d86d8b0e3e4',admin:'e63aef53685f85d82e6992e76fa6a760652d13486f06251c3d40d3c37b6a4142'},
+  'vierte':{pin:'73e9ba8e43dbf3f09c4a9d5e7b1cf2d8e3f6a0b2c4d5e8f1a2b3c4d5e6f7a8b9',admin:'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2'},
+};
 function hashPin(p){var h=0;for(var i=0;i<p.length;i++){h=((h<<5)-h)+p.charCodeAt(i);h|=0;}return h.toString(16);}
 async function sha256(msg){var enc=new TextEncoder();var data=enc.encode(msg);var buf=await crypto.subtle.digest('SHA-256',data);var arr=Array.from(new Uint8Array(buf));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
 
-// Alle Datenbank-Zugriffe laufen ueber /api/ - kein Key im Frontend
+var SB='https://rqkdfjkywbfimswwtvwh.supabase.co/rest/v1';
+var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxa2Rmamt5d2JmaW1zd3d0dndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzc4NTYsImV4cCI6MjA5NTY1Mzg1Nn0.JlimK_1urpPcyyZtww0WZl9z_AvfKwKEn1rft-5Lmuo';
+function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};}
 var SCHOOL='Grundschule am Hengstbach';
 var currentDay='';
 var gefundenId=null;
@@ -481,22 +488,24 @@ function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 function getKinder(){return ls('pd_kinder')||[];}
 function saveKinder(l){ss('pd_kinder',l);}
 function getEntries(){return ls('pd_entries')||[];}
-function sbPost(e){var b=Object.assign({},e,{schule:aktiveSchule});fetch('/api/entries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).catch(function(){});}
-function sbDel(id){fetch('/api/entries?id=eq.'+encodeURIComponent(String(id))+'&schule='+encodeURIComponent(aktiveSchule),{method:'DELETE'}).catch(function(){});}
-function sbPatch(id,d){fetch('/api/entries?id=eq.'+encodeURIComponent(String(id))+'&schule='+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).catch(function(){});}
-function kbPost(k){var b=Object.assign({},k,{schule:aktiveSchule});fetch('/api/kinder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).catch(function(){});}
-function kbDel(name){fetch('/api/kinder?name=eq.'+encodeURIComponent(name)+'&schule='+encodeURIComponent(aktiveSchule),{method:'DELETE'}).catch(function(){});}
-function kbClear(){fetch('/api/kinder?name=not.is.null&schule='+encodeURIComponent(aktiveSchule),{method:'DELETE'}).catch(function(){});}
+function sbPost(e){var b=Object.assign({},e,{schule:aktiveSchule||''});fetch(SB+'/entries',{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
+function sbDel(id){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function sbPatch(id,d){fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
+function kbPost(k){var b=Object.assign({},k,{schule:aktiveSchule||''});fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
+function kbDel(name){fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name)+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function kbClear(){fetch(SB+'/kinder?name=not.is.null&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});}
 function kbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
-  fetch('/api/kinder?schule='+encodeURIComponent(aktiveSchule),{method:'GET'})
+  var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
+  fetch(SB+'/kinder?select=*&order=name.asc'+filter,{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){if(Array.isArray(d)){ss('pd_kinder',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
 }
 function sbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
-  fetch('/api/entries?schule='+encodeURIComponent(aktiveSchule),{method:'GET'})
+  var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
+  fetch(SB+'/entries?select=*&order=zeit.asc'+filter,{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){if(Array.isArray(d)){ss('pd_entries',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
@@ -595,7 +604,7 @@ function melden(){
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
-  fetch('/api/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay+'&schule='+encodeURIComponent(aktiveSchule),{method:'DELETE'}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
+  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+name+'</b> → '+zeit+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -696,8 +705,9 @@ async function login(){
   var box=document.getElementById('bc');
   if(!box.classList.contains('on')){show('p-err','Bitte Datenschutz zustimmen.');return;}
   var pin=document.getElementById('pin').value.trim();
-  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin,type:'betreuer',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(e){return{ok:false,debug:'fetch_fehler:'+e.message};});
-  if(!resp.ok){show('p-err','Falscher PIN.'+(resp.debug?' ['+resp.debug+']':''));return;}
+  var h=await sha256(pin);
+  var sc=SCHUL_CODES[aktiveSchule];
+  if(!sc||h!==sc.pin){show('p-err','Falscher PIN.');return;}
   document.getElementById('tab-liste').style.display='';
   document.getElementById('tab-admin').style.display='';
   
@@ -867,7 +877,7 @@ function clearEntries(){
   if(alle.length===0){alert('Keine Sonder-Abholungen zum Löschen.');return;}
   if(!confirm('Alle '+alle.length+' Sonder-Abholungen löschen?'))return;
   saveEntries([]);
-  fetch('/api/entries?id=not.is.null&schule='+encodeURIComponent(aktiveSchule),{method:'DELETE'}).catch(function(){});
+  fetch(SB+'/entries?id=not.is.null&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});
   lSub(2);
   renderListe();
 }
@@ -877,8 +887,9 @@ async function adminCheck(){
   if(adminLoggedIn){go('admin');return;}
   var code=prompt('Admin-Code eingeben:');
   if(!code)return;
-  var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:code,type:'admin',schule:aktiveSchule})}).then(function(r){return r.json();}).catch(function(e){return{ok:false,debug:'fetch_fehler:'+e.message};});
-  if(!resp.ok){alert('Falscher Admin-Code.'+(resp.debug?' ['+resp.debug+']':''));return;}
+  var ah=await sha256(code);
+  var sc=SCHUL_CODES[aktiveSchule];
+  if(!sc||ah!==sc.admin){alert('Falscher Admin-Code.');return;}
   adminLoggedIn=true;
   go('admin');
 }
