@@ -3,8 +3,11 @@ const fetch = require('node-fetch');
 const GUELTIGE_SCHULEN = ['hengstbach', 'goethe', 'schiller', 'vierte'];
 
 module.exports = async (req, res) => {
-  const SB = process.env.SUPABASE_URL + '/rest/v1';
-  const SK = process.env.SUPABASE_KEY;
+  const SB = process.env.SUPABASE_URL;
+  const SK = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!SK) return res.status(500).json({ error: 'Kein Supabase Key gefunden' });
+
   const headers = {
     'apikey': SK,
     'Authorization': 'Bearer ' + SK,
@@ -23,19 +26,19 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === 'GET') {
-      const r = await fetch(SB + '/kinder?select=*&order=name.asc&schule=eq.' + encodeURIComponent(schule), { method: 'GET', headers });
+      const r = await fetch(SB + '/rest/v1/kinder?select=*&order=name.asc&schule=eq.' + encodeURIComponent(schule), { method: 'GET', headers });
       const data = await r.json();
       return res.json(data);
     }
     if (req.method === 'POST') {
       const body = { ...req.body, schule };
-      const r = await fetch(SB + '/kinder', { method: 'POST', headers, body: JSON.stringify(body) });
+      const r = await fetch(SB + '/rest/v1/kinder', { method: 'POST', headers, body: JSON.stringify(body) });
       const data = await r.json();
       return res.json(data);
     }
     if (req.method === 'DELETE') {
-      let q = req.url.split('?')[1] || '';
-      const url = SB + '/kinder?' + q + '&schule=eq.' + encodeURIComponent(schule);
+      const q = req.url.split('?')[1] || '';
+      const url = SB + '/rest/v1/kinder?' + q + '&schule=eq.' + encodeURIComponent(schule);
       const r = await fetch(url, { method: 'DELETE', headers });
       const data = await r.json();
       return res.json(data);
