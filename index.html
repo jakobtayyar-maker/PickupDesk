@@ -420,9 +420,9 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       </div>
       <div class="search-box"><input class="inp" type="text" id="l-search" placeholder="🔍 Name suchen..." oninput="renderListe()"></div>
       <div class="stabs">
-        <button class="stab on" id="lt1" onclick="lSub(1)" id="t-lt1">Alle Kinder</button>
-        <button class="stab" id="lt2" onclick="lSub(2)" id="t-lt2">Früher gehen</button>
-        <button class="stab" id="lt3" onclick="lSub(3)" id="t-lt3">Abgeholt</button>
+        <button class="stab on" id="lt1" onclick="lSub(1)">Alle Kinder</button>
+        <button class="stab" id="lt2" onclick="lSub(2)">Früher gehen</button>
+        <button class="stab" id="lt3" onclick="lSub(3)">Abgeholt</button>
       </div>
       <div id="lp1"><div id="list-alle"></div></div>
       <div id="lp2" style="display:none"><div id="list-frueh"></div></div>
@@ -527,7 +527,12 @@ function saveEntries(l){ss('pd_entries',l);}
     var entries=JSON.parse(localStorage.getItem('pd_entries')||'[]');
     var keep=entries.filter(function(e){return e.tag!==letzterTag;});
     localStorage.setItem('pd_entries',JSON.stringify(keep));
-    fetch(SB+'/entries?tag=eq.'+letzterTag,{method:'DELETE',headers:sbh()}).catch(function(){});
+    // WICHTIG: Nur Einträge der EIGENEN Schule löschen, sonst werden andere Schulen mitgelöscht!
+    // pd_kinder (die normale Kinderliste) wird hier absichtlich NICHT angefasst.
+    var mSchule=localStorage.getItem('pd_aktiveSchule')||'';
+    if(mSchule){
+      fetch(SB+'/entries?tag=eq.'+letzterTag+'&schule=eq.'+encodeURIComponent(mSchule),{method:'DELETE',headers:sbh()}).catch(function(){});
+    }
   }
 
   // Heutigen Tag merken (nur Mo-Fr, damit am Wochenende nichts faelschlich geloescht wird)
@@ -553,6 +558,7 @@ function show(id,t){var e=document.getElementById(id);if(e){e.innerHTML=t;e.styl
 function hide(id){var e=document.getElementById(id);if(e)e.style.display='none';}
 function tog(id){var e=document.getElementById(id);if(e){e.classList.toggle('on');e.textContent=e.classList.contains('on')?'\u2713':'';}}
 function inits(v,n){return((v||'')[0]||'').toUpperCase()+((n||'')[0]||'').toUpperCase();}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ── Eltern: Consent ──
 function acceptConsent(){
@@ -598,7 +604,8 @@ function melden(){
     kbLoad(function(){});
     return;
   }
-  var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
+  // Alle bisherigen Einträge für dieses Kind an diesem Tag ersetzen (wie beim Supabase-DELETE unten)
+  var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay);});
   var newEntry={id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay};
   entries.push(newEntry);
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
@@ -613,6 +620,10 @@ function melden(){
 
 // ── Eltern: Suchen/Ändern/Löschen ──
 function suchen(){
+  // Erst Online-Daten laden, damit auch Einträge von anderen Geräten gefunden werden
+  sbLoad(function(){doSuchen();});
+}
+function doSuchen(){
   hide('s-err');
   document.getElementById('s-found').style.display='none';
   document.getElementById('s-results').style.display='none';
@@ -629,7 +640,6 @@ function suchen(){
   for(var i=0;i<entries.length;i++){
     if(entries[i].name.toLowerCase()===name.toLowerCase()&&entries[i].tag===suchenDay){found=entries[i];break;}
   }
-  var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
   if(!found){show('s-err','Kein Eintrag für "'+name+'" am '+(tage[suchenDay]||'')+' gefunden.');return;}
   selectEntry(found);
 }
@@ -816,7 +826,8 @@ function buildList(list,containerId,emptyMsg){
     var t=keys[k];
     var g=grp[t];
     var allD=g.every(function(x){return x.done;});
-    html+='<div class="tg-h">'+t+' Uhr <button class="gc'+(allD?' on':'')+'" onclick="toggleGroup(this)" data-time="'+t+'">'+(allD?'\u2713 Alle':'Alle '+g.length)+'</button></div>';
+    var gIds=encodeURIComponent(JSON.stringify(g.map(function(x){return String(x.id);})));
+    html+='<div class="tg-h">'+t+' Uhr <button class="gc'+(allD?' on':'')+'" onclick="toggleGroup(this)" data-time="'+t+'" data-ids="'+gIds+'">'+(allD?'\u2713 Alle':'Alle '+g.length)+'</button></div>';
     for(var j=0;j<g.length;j++){
       var e=g[j];
       var f=FARBEN[e.name.length%FARBEN.length];
@@ -826,9 +837,9 @@ function buildList(list,containerId,emptyMsg){
       if(!meta)meta='\u2013';
       html+='<div class="entry'+(e.done?' done':'')+'">';
       html+='<div class="av" style="background:'+f.bg+';color:'+f.fg+'">'+ini+'</div>';
-      html+='<div class="einfo"><div class="ename">'+e.name+'</div><div class="emeta">'+meta+'</div></div>';
-      html+='<div class="etime">'+t+'</div>';
-      if(e.id){html+='<button class="ck'+(e.done?' on':'')+'" data-eid="'+e.id+'">'+(e.done?'\u2713':'\u25cb')+'</button>';}
+      html+='<div class="einfo"><div class="ename">'+esc(e.name)+'</div><div class="emeta">'+esc(meta)+'</div></div>';
+      html+='<div class="etime">'+esc(t)+'</div>';
+      if(e.id){html+='<button class="ck'+(e.done?' on':'')+'" data-eid="'+esc(e.id)+'">'+(e.done?'\u2713':'\u25cb')+'</button>';}
       html+='</div>';
     }
   }
@@ -839,38 +850,76 @@ function buildList(list,containerId,emptyMsg){
   }
 }
 
-function toggleGroup(btn){
-  var time=btn.getAttribute('data-time');
+// Kern-Logik: setzt done-Status für eine ID (auch reg_-IDs), synct mit Supabase.
+// Gibt true zurück wenn etwas geändert wurde. Rendert NICHT selbst.
+function setDone(sid,value){
+  sid=String(sid);
   var entries=getEntries();
-  var grp=entries.filter(function(e){return e.zeit===time;});
-  var allD=grp.every(function(e){return e.done;});
-  for(var i=0;i<entries.length;i++){if(entries[i].zeit===time)entries[i].done=!allD;}
-  saveEntries(entries);renderListe();
+  if(sid.indexOf('reg_')===0){
+    // Reguläres Kind aus "Alle Kinder": Eintrag suchen oder neu anlegen
+    var childName=sid.substring(4).replace(/_/g,' ');
+    var existing=entries.find(function(e){return e.name.toLowerCase()===childName.toLowerCase()&&e.tag===currentDay;});
+    if(existing){
+      if(existing.done===value)return false;
+      existing.done=value;
+      saveEntries(entries);
+      sbPatch(existing.id,{done:existing.done});
+      return true;
+    }
+    if(!value)return false; // nicht vorhanden + abwählen = nichts zu tun
+    var k=getKinder().find(function(x){return x.name.toLowerCase()===childName.toLowerCase();});
+    if(!k)return false;
+    var parts=k.name.split(' ');
+    var neu={id:'e'+Date.now()+Math.floor(Math.random()*1000),name:k.name,v:parts[0],n:parts.slice(1).join(' '),zeit:k.zeit||'15:00',abhol:'',hw:'',done:true,tag:currentDay,src:'admin'};
+    entries.push(neu);
+    saveEntries(entries);
+    sbPost(neu); // Neuer Eintrag: POST statt PATCH, sonst kommt der Status nie online an
+    return true;
+  }
+  for(var i=0;i<entries.length;i++){
+    if(String(entries[i].id)===sid){
+      if(entries[i].done===value)return false;
+      entries[i].done=value;
+      saveEntries(entries);
+      sbPatch(entries[i].id,{done:entries[i].done});
+      return true;
+    }
+  }
+  return false;
+}
+function toggleGroup(btn){
+  var ids=[];
+  try{ids=JSON.parse(decodeURIComponent(btn.getAttribute('data-ids')||''));}catch(e){}
+  if(!ids.length)return;
+  // Aktueller Status der Gruppe ermitteln (nur diese Gruppe, nur dieser Tag)
+  var entries=getEntries();
+  var allD=ids.every(function(sid){
+    sid=String(sid);
+    if(sid.indexOf('reg_')===0){
+      var nm=sid.substring(4).replace(/_/g,' ');
+      var ex=entries.find(function(e){return e.name.toLowerCase()===nm.toLowerCase()&&e.tag===currentDay;});
+      return ex?!!ex.done:false;
+    }
+    var e=entries.find(function(x){return String(x.id)===sid;});
+    return e?!!e.done:false;
+  });
+  for(var i=0;i<ids.length;i++)setDone(ids[i],!allD);
+  doRenderListe();
 }
 function toggleDone(id){
   var sid=String(id);
   var entries=getEntries();
-  // Check if this is a regular entry (from Alle Kinder)
+  var cur=false;
   if(sid.indexOf('reg_')===0){
-    var childName=sid.substring(4).replace(/_/g,' ');
-    var existing=entries.find(function(e){return e.name.toLowerCase()===childName.toLowerCase()&&e.tag===currentDay;});
-    if(existing){
-      existing.done=!existing.done;
-    }else{
-      var k=getKinder().find(function(x){return x.name.toLowerCase()===childName.toLowerCase();});
-      if(k){
-        var parts=k.name.split(' ');
-        entries.push({id:'e'+Date.now(),name:k.name,v:parts[0],n:parts.slice(1).join(' '),zeit:k.zeit||'15:00',abhol:'',hw:'',done:true,tag:currentDay,src:'admin'});
-      }
-    }
+    var nm=sid.substring(4).replace(/_/g,' ');
+    var ex=entries.find(function(e){return e.name.toLowerCase()===nm.toLowerCase()&&e.tag===currentDay;});
+    cur=ex?!!ex.done:false;
   }else{
-    for(var i=0;i<entries.length;i++){
-      if(String(entries[i].id)===sid){entries[i].done=!entries[i].done;break;}
-    }
+    var e=entries.find(function(x){return String(x.id)===sid;});
+    cur=e?!!e.done:false;
   }
-  saveEntries(entries);
-  var ue=entries.find(function(x){return String(x.id)===sid;});
-  if(ue)sbPatch(ue.id,{done:ue.done});renderListe();
+  setDone(sid,!cur);
+  doRenderListe();
 }
 function clearEntries(){
   var alle=getEntries();
@@ -912,7 +961,9 @@ function kindHinzu(){
   show('k-ok','✅ '+name+' hinzugefügt!');
   document.getElementById('k-vn').value='';document.getElementById('k-nn').value='';
   document.getElementById('k-kl').value='';document.getElementById('k-zeit').value='';
-  renderAdmin();
+  // Direkt lokal rendern - kein Server-Reload, sonst kann der neue Name kurz
+  // verschwinden bevor der POST beim Server angekommen ist (Race Condition)
+  doRenderAdmin();
   setTimeout(function(){hide('k-ok');},3000);
 }
 
@@ -928,8 +979,8 @@ function doRenderAdmin(){
   var html='';
   for(var i=0;i<kinder.length;i++){
     var k=kinder[i];
-    html+='<div class="admin-item"><div><div class="admin-name">'+k.name+'</div>';
-    html+='<div class="admin-detail">Klasse: '+k.klasse+' · '+k.zeit+' Uhr</div></div>';
+    html+='<div class="admin-item"><div><div class="admin-name">'+esc(k.name)+'</div>';
+    html+='<div class="admin-detail">Klasse: '+esc(k.klasse)+' · '+esc(k.zeit)+' Uhr</div></div>';
     html+='<button class="del" data-idx="'+i+'">✕</button></div>';
   }
   box.innerHTML=html;
@@ -949,7 +1000,7 @@ function doRenderAdmin(){
       if(!confirm(name+' wirklich entfernen?'))return;
       saveKinder(alle.filter(function(k){return k.name!==name;}));
       kbDel(name);
-      renderAdmin();
+      doRenderAdmin(); // lokal rendern - sonst kann das gelöschte Kind kurz wieder auftauchen
     });
     dels[i].addEventListener('touchend',function(ev){ev.preventDefault();this.click();});
   }
@@ -1064,7 +1115,7 @@ function setLang(l){
     fa:{lt1:'همه کودکان',lt2:'زودتر',lt3:'تحویل شده',clear:'پاک کردن',back:'بازگشت',s1:'مجموع',s2:'زودتر',s3:'تحویل',pin:'کد PIN',login:'ورود',vtpin:'ورود',vspin:'فقط مجاز.',vtadmin:'مدیریت – کودکان',vsadmin:'اضافه، جستجو یا حذف.',addkind:'اضافه',bulk:'اضافه همه',delall:'حذف همه',aendernbtn:'ذخیره',loeschenbtn:'حذف',tag:'روز'}
   };
   var xx=tx[l]||tx['de'];
-  s('t-lt1',xx.lt1);s('t-lt2',xx.lt2);s('t-lt3',xx.lt3);
+  s('lt1',xx.lt1);s('lt2',xx.lt2);s('lt3',xx.lt3);
   s('t-btn-clear',xx.clear);s('t-back',xx.back);
   s('t-s1',xx.s1);s('t-s2',xx.s2);s('t-s3',xx.s3);
   s('t-fl-pin',xx.pin);s('t-btn-login',xx.login);
@@ -1131,7 +1182,7 @@ function bulkAdd(){
   if(skipped.length)msg+=' Übersprungen: '+skipped.join(', ');
   show('kb-ok',msg);
   document.getElementById('k-bulk').value='';
-  renderAdmin();
+  doRenderAdmin(); // lokal rendern, kein sofortiger Server-Reload (Race Condition)
 }
 
 document.addEventListener('DOMContentLoaded',function(){
