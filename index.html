@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rqkdfjkywbfimswwtvwh.supabase.co; img-src 'self' data:; font-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xrouiyntzjvscxfpsjjg.supabase.co; img-src 'self' data:; font-src 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>PickupDesk – Grundschule am Hengstbach</title>
 <style>
@@ -473,8 +473,8 @@ var SCHUL_CODES={
 function hashPin(p){var h=0;for(var i=0;i<p.length;i++){h=((h<<5)-h)+p.charCodeAt(i);h|=0;}return h.toString(16);}
 async function sha256(msg){var enc=new TextEncoder();var data=enc.encode(msg);var buf=await crypto.subtle.digest('SHA-256',data);var arr=Array.from(new Uint8Array(buf));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
 
-var SB='https://rqkdfjkywbfimswwtvwh.supabase.co/rest/v1';
-var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxa2Rmamt5d2JmaW1zd3d0dndoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzc4NTYsImV4cCI6MjA5NTY1Mzg1Nn0.JlimK_1urpPcyyZtww0WZl9z_AvfKwKEn1rft-5Lmuo';
+var SB='https://xrouiyntzjvscxfpsjjg.supabase.co/rest/v1';
+var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhyb3VpeW50emp2c2N4ZnBzampnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjQzNTksImV4cCI6MjA5NjUwMDM1OX0.kVn-BB1XoUzcVP6a-bRJxN1jZ7gVNZD9zu05Io72HoU';
 function sbh(){return{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':'return=representation'};}
 var SCHOOL='Grundschule am Hengstbach';
 var currentDay='';
