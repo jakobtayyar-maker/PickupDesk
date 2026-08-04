@@ -240,6 +240,10 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
       <input class="inp" type="text" id="m-city" placeholder="z.B. Frankfurt">
       <label class="fl">Schul-ID (nur Kleinbuchstaben)</label>
       <input class="inp" type="text" id="m-id" placeholder="z.B. hengstbach">
+      <label class="fl">Betreuer-PIN (Zahlen)</label>
+      <input class="inp" type="text" id="m-pin" inputmode="numeric" placeholder="z.B. 246810">
+      <label class="fl">Admin-Code</label>
+      <input class="inp" type="text" id="m-admin" placeholder="z.B. 20082026">
       <button class="btn btn-g" onclick="addSchule()" style="margin-top:12px">Schule hinzufügen</button>
       <div id="m-ok" class="msg msg-ok"></div>
     </div>
@@ -469,8 +473,8 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
 <script>
 var SCHUL_CODES={
   'hengstbach':{pin:'ce295eba8ac815b97b0ec6b3179ce26748898f3325a9657e5cdd0cdaf0de5e04',admin:'604fbb5dd5827ce046e0fe49aa36e5c3de2c0e31d5577bba626d7741ad5211b6'},
-  'goethe':{pin:'7b17e52e7e27a3c2e6a8dfd41bbff0bbeeaa11e31e87fbbce5abb9a32db44b9f',admin:'b8d8c3f4c7c85d3c3f81fa40e8e14e19e3aba6a8c0a1a7c0ce23e18b3c1e0d4'},
-  'schiller':{pin:'91ecbb18d77e46118c6ca52e843e9728763b472dc841255967281d86d8b0e3e4',admin:'e63aef53685f85d82e6992e76fa6a760652d13486f06251c3d40d3c37b6a4142'},
+  'goethe':{pin:'a71e7685e9fb19eea6c96f9eaf548297a7da93ca7345e64ee5862b9baaefecc1',admin:'e310af3eb72db85c22d17ea3735ca5913281b1370f94436dd22a5eed9afe0789'},
+  'schiller':{pin:'cef21305a71190366cf90b39ce7e209c906740e396bc60d7f2aef6520212c555',admin:'4c21f55595bf0c66d601bf85a1fcd2f759e497b838b8fff90404845b27e6372b'},
 };
 function hashPin(p){var h=0;for(var i=0;i<p.length;i++){h=((h<<5)-h)+p.charCodeAt(i);h|=0;}return h.toString(16);}
 async function sha256(msg){var enc=new TextEncoder();var data=enc.encode(msg);var buf=await crypto.subtle.digest('SHA-256',data);var arr=Array.from(new Uint8Array(buf));return arr.map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
@@ -712,7 +716,7 @@ async function login(){
   if(!box.classList.contains('on')){show('p-err','Bitte Datenschutz zustimmen.');return;}
   var pin=document.getElementById('pin').value.trim();
   var h=await sha256(pin);
-  var sc=SCHUL_CODES[aktiveSchule];
+  var sc=getCodes(aktiveSchule);
   if(!sc||h!==sc.pin){show('p-err','Falscher PIN.');return;}
   document.getElementById('tab-liste').style.display='';
   document.getElementById('tab-admin').style.display='';
@@ -905,7 +909,7 @@ async function adminCheck(){
   var code=prompt('Admin-Code eingeben:');
   if(!code)return;
   var ah=await sha256(code);
-  var sc=SCHUL_CODES[aktiveSchule];
+  var sc=getCodes(aktiveSchule);
   if(!sc||ah!==sc.admin){alert('Falscher Admin-Code.');return;}
   adminLoggedIn=true;
   go('admin');
@@ -1161,16 +1165,38 @@ document.addEventListener('DOMContentLoaded',function(){
 var aktiveSchule = '';
 var aktiveSchuleName = '';
 
+var SCHULEN_DB=null; // aus Supabase geladene Schulliste (inkl. Code-Hashes)
+
+// Schulen aus Supabase laden. Faellt STILL auf lokale/Standard-Liste zurueck,
+// wenn die Tabelle fehlt oder kein Internet da ist -> App laeuft immer weiter.
+function loadSchulenDB(cb){
+  fetch(SB+'/schulen?select=*&order=name.asc',{headers:sbh()})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(Array.isArray(d)){SCHULEN_DB=d;ss('pd_schulen',d);}
+    if(cb)cb();
+  })
+  .catch(function(){if(cb)cb();});
+}
+
 function getSchulen(){
   var def = [
     {id:'hengstbach', name:'Grundschule am Hengstbach', city:'Frankfurt', icon:'🏫'},
     {id:'goethe', name:'Goethe-Grundschule', city:'Frankfurt', icon:'📚'},
     {id:'schiller', name:'Schillerschule', city:'Offenbach', icon:'🎓'}
   ];
+  if(SCHULEN_DB && SCHULEN_DB.length) return SCHULEN_DB;
   return ls('pd_schulen') || def;
 }
 
 function saveSchulen(s){ ss('pd_schulen', s); }
+
+// Login-Codes einer Schule: zuerst aus Supabase-Liste, sonst fest hinterlegte (Kern-Schulen)
+function getCodes(id){
+  var s=(SCHULEN_DB||[]).find(function(x){return x.id===id;});
+  if(s && (s.pin||s.admin)) return {pin:s.pin,admin:s.admin};
+  return SCHUL_CODES[id]||null;
+}
 
 var schoolTarget='eltern';
 function showSchoolPage(target){
@@ -1179,6 +1205,7 @@ function showSchoolPage(target){
   document.getElementById('pg-land').style.display='none';
   document.getElementById('pg-master').style.display='none';
   renderSchulen();
+  loadSchulenDB(function(){renderSchulen();});
 }
 
 function renderSchulen(filter){
@@ -1248,8 +1275,8 @@ function masterLogin(){
   var code=prompt('Master-Admin Code:');
   if(!code)return;
   sha256(code).then(function(h){
-    // Hash of "MASTER2025"
-    if(h==='c56b55c09f9baeb98baa0c89c6bbfe1e72e7a8aef2d44494cbcc9e5a1eb3b9df'){
+    // Hash of "master-2025"
+    if(h==='2eed24e6692baff3bbd6c019992a67bcbd7e73346f7759274e95bd4c47b1c3bd'){
       document.getElementById('pg-school').style.display='none';
       document.getElementById('pg-master').style.display='block';
       renderMasterSchulen();
@@ -1263,17 +1290,28 @@ function addSchule(){
   var name=document.getElementById('m-name').value.trim();
   var city=document.getElementById('m-city').value.trim();
   var id=document.getElementById('m-id').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
-  if(!name||!city||!id){alert('Bitte alle Felder ausfüllen.');return;}
-  var schulen=getSchulen();
-  if(schulen.find(function(s){return s.id===id;})){alert('Schul-ID bereits vorhanden.');return;}
-  schulen.push({id:id,name:name,city:city,icon:'🏫'});
-  saveSchulen(schulen);
-  document.getElementById('m-name').value='';
-  document.getElementById('m-city').value='';
-  document.getElementById('m-id').value='';
-  show('m-ok','✅ '+name+' hinzugefügt!');
-  setTimeout(function(){hide('m-ok');},3000);
-  renderMasterSchulen();
+  var pin=document.getElementById('m-pin').value.trim();
+  var admin=document.getElementById('m-admin').value.trim();
+  if(!name||!city||!id){alert('Bitte Name, Stadt und ID ausfüllen.');return;}
+  if(!pin||!admin){alert('Bitte Betreuer-PIN und Admin-Code festlegen.');return;}
+  if(getSchulen().find(function(s){return s.id===id;})){alert('Schul-ID bereits vorhanden.');return;}
+  Promise.all([sha256(pin),sha256(admin)]).then(function(hh){
+    var row={id:id,name:name,city:city,icon:'🏫',pin:hh[0],admin:hh[1]};
+    fetch(SB+'/schulen',{method:'POST',headers:sbh(),body:JSON.stringify(row)})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.code){alert('Fehler beim Speichern: '+(d.message||d.code)+'\n(Ist die Tabelle "schulen" angelegt?)');return;}
+      document.getElementById('m-name').value='';
+      document.getElementById('m-city').value='';
+      document.getElementById('m-id').value='';
+      document.getElementById('m-pin').value='';
+      document.getElementById('m-admin').value='';
+      show('m-ok','✅ '+name+' hinzugefügt!');
+      setTimeout(function(){hide('m-ok');},3000);
+      loadSchulenDB(function(){renderMasterSchulen();});
+    })
+    .catch(function(){alert('Speichern fehlgeschlagen. Internet prüfen und ob die Tabelle "schulen" existiert.');});
+  });
 }
 
 function renderMasterSchulen(){
@@ -1295,9 +1333,26 @@ function renderMasterSchulen(){
     dels[d].addEventListener('click',function(){
       var idx=parseInt(this.getAttribute('data-idx'));
       var s=getSchulen();
-      if(confirm(s[idx].name+' wirklich löschen?')){
-        s.splice(idx,1);saveSchulen(s);renderMasterSchulen();
-      }
+      var sch=s[idx];
+      if(!sch)return;
+      if(!confirm(sch.name+' wirklich löschen?\n\nAlle Kinder UND alle Einträge dieser Schule werden dabei endgültig gelöscht.'))return;
+      var sid=encodeURIComponent(sch.id);
+      // Reihenfolge: erst Daten, dann Schule selbst
+      fetch(SB+'/entries?schule=eq.'+sid,{method:'DELETE',headers:sbh()})
+      .then(function(){return fetch(SB+'/kinder?schule=eq.'+sid,{method:'DELETE',headers:sbh()});})
+      .then(function(){return fetch(SB+'/schulen?id=eq.'+sid,{method:'DELETE',headers:sbh()});})
+      .then(function(){
+        // Falls die gerade aktive Schule gelöscht wurde: lokal zurücksetzen
+        if(aktiveSchule===sch.id){
+          aktiveSchule='';aktiveSchuleName='';
+          localStorage.removeItem('pd_aktiveSchule');
+          localStorage.removeItem('pd_aktiveSchuleName');
+          localStorage.removeItem('pd_entries');
+          localStorage.removeItem('pd_kinder');
+        }
+        loadSchulenDB(function(){renderMasterSchulen();});
+      })
+      .catch(function(){alert('Löschen fehlgeschlagen. Internet prüfen und ob die Tabelle "schulen" existiert.');});
     });
   }
 }
@@ -1316,6 +1371,8 @@ document.addEventListener('DOMContentLoaded',function(){
   }
   // Tages-Loeschung erst jetzt, wenn die aktive Schule bekannt ist
   mitternachtCheck();
+  // Schulliste (inkl. Codes neuer Schulen) aus Supabase laden
+  loadSchulenDB();
 });
 
 
