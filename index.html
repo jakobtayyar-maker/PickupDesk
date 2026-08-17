@@ -1281,9 +1281,13 @@ function saveSchulen(s){ ss('pd_schulen', s); }
 
 // Login-Codes einer Schule: zuerst aus Supabase-Liste, sonst fest hinterlegte (Kern-Schulen)
 function getCodes(id){
+  var fest=SCHUL_CODES[id]||null;
   var s=(SCHULEN_DB||[]).find(function(x){return x.id===id;});
-  if(s && (s.pin||s.admin)) return {pin:s.pin,admin:s.admin};
-  return SCHUL_CODES[id]||null;
+  if(s && (s.pin||s.admin)){
+    // Datenbank hat Vorrang. Fehlt dort ein einzelner Wert, gilt der fest hinterlegte.
+    return {pin:s.pin||(fest&&fest.pin)||'', admin:s.admin||(fest&&fest.admin)||''};
+  }
+  return fest;
 }
 
 var schoolTarget='eltern';
@@ -1413,10 +1417,61 @@ function renderMasterSchulen(){
     html+='<div style="background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">';
     html+='<div><div style="font-size:14px;font-weight:700">'+schulen[i].name+'</div>';
     html+='<div style="font-size:11px;color:#888">'+schulen[i].city+' · ID: '+schulen[i].id+'</div></div>';
+    html+='<div style="display:flex;gap:6px;flex-shrink:0">';
+    html+='<button style="background:none;border:1px solid #E2E8F0;border-radius:6px;padding:5px 10px;cursor:pointer;color:#1A6644;font-size:12px;font-weight:600;font-family:inherit" data-idx="'+i+'" class="code-schule">Codes</button>';
     html+='<button style="background:none;border:1px solid #E2E8F0;border-radius:6px;padding:5px 10px;cursor:pointer;color:#DC2626;font-size:12px;font-family:inherit" data-idx="'+i+'" class="del-schule">Löschen</button>';
+    html+='</div>';
     html+='</div>';
   }
   box.innerHTML=html;
+
+  // ── Codes aendern ──
+  var codeBtns=box.querySelectorAll('.code-schule');
+  for(var c=0;c<codeBtns.length;c++){
+    codeBtns[c].addEventListener('click',function(){
+      var idx=parseInt(this.getAttribute('data-idx'));
+      var sch=getSchulen()[idx];
+      if(!sch)return;
+      var neuPin=prompt('Neuer Betreuer-PIN für '+sch.name+':\n\n(leer lassen = unverändert)','');
+      if(neuPin===null)return;
+      var neuAdmin=prompt('Neuer Admin-Code für '+sch.name+':\n\n(leer lassen = unverändert)','');
+      if(neuAdmin===null)return;
+      neuPin=(neuPin||'').trim();
+      neuAdmin=(neuAdmin||'').trim();
+      if(!neuPin&&!neuAdmin){alert('Nichts geändert.');return;}
+      if(neuPin&&neuPin.length<4){alert('Der PIN sollte mindestens 4 Zeichen haben.');return;}
+      if(neuAdmin&&neuAdmin.length<4){alert('Der Admin-Code sollte mindestens 4 Zeichen haben.');return;}
+      if(!confirm('Codes für '+sch.name+' wirklich ändern?\n\n'+
+                  (neuPin?'Neuer PIN: '+neuPin+'\n':'PIN bleibt unverändert\n')+
+                  (neuAdmin?'Neuer Admin-Code: '+neuAdmin:'Admin-Code bleibt unverändert')+
+                  '\n\nBitte jetzt notieren – Codes lassen sich später nicht mehr auslesen.'))return;
+
+      Promise.all([neuPin?sha256(neuPin):null, neuAdmin?sha256(neuAdmin):null]).then(function(hh){
+        var patch={};
+        if(hh[0])patch.pin=hh[0];
+        if(hh[1])patch.admin=hh[1];
+        return fetch(SB+'/schulen?id=eq.'+encodeURIComponent(sch.id),
+                     {method:'PATCH',headers:sbh(),body:JSON.stringify(patch)})
+        .then(function(r){
+          if(!r.ok){
+            return r.text().then(function(t){
+              alert('Speichern fehlgeschlagen (Status '+r.status+').\n\n'+(t||'').slice(0,200)+
+                    '\n\nExistiert die Tabelle "schulen"? (SQL ausgeführt?)');
+            });
+          }
+          // Wenn die geaenderte Schule gerade aktiv ist: neu anmelden erzwingen
+          if(aktiveSchule===sch.id){adminLoggedIn=false;}
+          alert('✅ Codes für '+sch.name+' geändert.\n\n'+
+                (neuPin?'PIN: '+neuPin+'\n':'')+
+                (neuAdmin?'Admin-Code: '+neuAdmin:'')+
+                '\n\nGilt sofort auf allen Geräten.');
+          loadSchulenDB(function(){renderMasterSchulen();});
+        });
+      }).catch(function(){alert('Speichern fehlgeschlagen – keine Verbindung zum Server.');});
+    });
+    codeBtns[c].addEventListener('touchend',function(ev){ev.preventDefault();this.click();});
+  }
+
   var dels=box.querySelectorAll('.del-schule');
   for(var d=0;d<dels.length;d++){
     dels[d].addEventListener('click',function(){
