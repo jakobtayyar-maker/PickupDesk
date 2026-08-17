@@ -346,8 +346,8 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
             <input class="inp" type="text" id="e-nn" placeholder="Nachname">
             <label class="fl">Abholzeit</label>
             <input class="inp" type="time" id="e-zeit" style="font-size:17px">
-            <label class="fl">Wer holt ab? <span class="opt">(optional)</span></label>
-            <input class="inp" type="text" id="e-abhol" placeholder="z.B. Oma, Papa">
+            <label class="fl">Wer holt ab / zusätzliche Informationen <span class="opt">(optional)</span></label>
+            <input class="inp" type="text" id="e-abhol" placeholder="z.B. Oma · darf mit Nathalie mitgehen">
 
             <div class="msg msg-ok" id="e-ok"></div>
             <div class="msg msg-err" id="e-err"></div>
@@ -378,8 +378,8 @@ button,.tab,.stab,.btn,.btn-d,.btn-g,.btn-o,.btn-r,.gc,.ck,.del,.day,.cbox,.crow
               <div id="s-edit" style="margin-top:8px">
                 <label class="fl">Neue Abholzeit</label>
                 <input class="inp" type="time" id="s-zeit" style="font-size:17px">
-                <label class="fl">Wer holt ab?</label>
-                <input class="inp" type="text" id="s-abhol">
+                <label class="fl">Wer holt ab / zusätzliche Informationen</label>
+                <input class="inp" type="text" id="s-abhol" placeholder="z.B. Oma · darf mit Nathalie mitgehen">
 
                 <div class="msg msg-ok" id="s-ok"></div>
                 <button class="btn btn-g" onclick="aendern()" id="t-btn-aendern">Änderung speichern</button>
@@ -1041,7 +1041,7 @@ function setLang(l){
   };
   var d=(l==='de')?null:t[l];
   document.documentElement.dir=(l==='ar'||l==='fa')?'rtl':'ltr';
-  if(!d)d={e:'Eltern-Bereich',es:'Abholzeit melden oder ändern.',n:'Neu melden',a:'Ändern',vn:'Vorname des Kindes',nn:'Nachname des Kindes',z:'Abholzeit',ab:'Wer holt ab?',btn:'Abholzeit melden',sb:'Eintrag suchen',ds:'Datenschutzerklärung',dc:'Ich stimme der Datenschutzerklärung zu',w:'Weiter'};
+  if(!d)d={e:'Eltern-Bereich',es:'Abholzeit melden oder ändern.',n:'Neu melden',a:'Ändern',vn:'Vorname des Kindes',nn:'Nachname des Kindes',z:'Abholzeit',ab:'Wer holt ab / zusätzliche Informationen',btn:'Abholzeit melden',sb:'Eintrag suchen',ds:'Datenschutzerklärung',dc:'Ich stimme der Datenschutzerklärung zu',w:'Weiter'};
   var s=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt;};
   s('t-vt',d.e);s('t-vs',d.es);s('st1',d.n);s('st2',d.a);
   s('t-btn-melden',d.btn);s('t-btn-suchen',d.sb);s('t-btn-weiter',d.w);
