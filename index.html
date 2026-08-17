@@ -502,8 +502,23 @@ function sbPost(e){if(!aktiveSchule)return;var b=Object.assign({},e,{schule:akti
 function sbDel(id){if(!aktiveSchule)return;fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
 function sbPatch(id,d){if(!aktiveSchule)return;fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
 function kbPost(k){if(!aktiveSchule)return;var b=Object.assign({},k,{schule:aktiveSchule});fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
-function kbDel(name){if(!aktiveSchule)return;fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name)+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
-function kbClear(){if(!aktiveSchule)return;fetch(SB+'/kinder?name=not.is.null&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function kbDel(name){
+  if(!aktiveSchule)return Promise.resolve();
+  var s='&schule=eq.'+encodeURIComponent(aktiveSchule);
+  // Kind UND alle seine Eintraege entfernen, sonst bleiben verwaiste Eintraege zurueck
+  return Promise.all([
+    fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()}),
+    fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()})
+  ]).catch(function(){});
+}
+function kbClear(){
+  if(!aktiveSchule)return Promise.resolve();
+  var s='&schule=eq.'+encodeURIComponent(aktiveSchule);
+  return Promise.all([
+    fetch(SB+'/kinder?name=not.is.null'+s,{method:'DELETE',headers:sbh()}),
+    fetch(SB+'/entries?name=not.is.null'+s,{method:'DELETE',headers:sbh()})
+  ]).catch(function(){});
+}
 function kbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
   var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
@@ -522,31 +537,53 @@ function sbLoad(cb){
 }
 function saveEntries(l){ss('pd_entries',l);}
 
-// Mitternacht (wird nach dem Laden der aktiven Schule in DOMContentLoaded aufgerufen)
+// Tages-Loeschung: Eintraege eines Wochentags werden erst 2 Tage spaeter geloescht.
+// Beispiel: Montags-Eintraege verschwinden am Mittwoch.
+// Vorgeplante Tage bleiben erhalten, bis ihr Tag tatsaechlich 2 Tage her ist.
 function mitternachtCheck(){
-  // Tages-Loeschung: Nur der GENAU abgelaufene Tag wird geloescht.
-  // Vorgeplante Tage (z.B. naechste Woche schon eingetragen) bleiben erhalten.
   var tagMap=['','mo','di','mi','do','fr',''];
   var schule=localStorage.getItem('pd_aktiveSchule')||'';
   var heute=new Date();
-  var heuteStr=heute.getFullYear()+'-'+(heute.getMonth()+1)+'-'+heute.getDate();
-  var letzterTag=localStorage.getItem('pd_letzterTag');
-  var letztesDatum=localStorage.getItem('pd_letztesDatum');
+  var heuteStr=heute.getFullYear()+'-'+String(heute.getMonth()+1).padStart(2,'0')+'-'+String(heute.getDate()).padStart(2,'0');
 
-  // Wenn ein neuer Kalendertag begonnen hat: nur den zuletzt aktiven Wochentag loeschen
-  if(letztesDatum && letztesDatum!==heuteStr && letzterTag){
-    var entries=JSON.parse(localStorage.getItem('pd_entries')||'[]');
-    var keep=entries.filter(function(e){return e.tag!==letzterTag;});
+  // Merkzettel: an welchem Datum war welcher Wochentag zuletzt aktiv?
+  var daten={};
+  try{daten=JSON.parse(localStorage.getItem('pd_tagDaten')||'{}')||{};}catch(e){daten={};}
+
+  // Heutigen Wochentag mit heutigem Datum vermerken (nur Mo-Fr)
+  var heuteTag=tagMap[heute.getDay()]||'';
+  if(heuteTag)daten[heuteTag]=heuteStr;
+
+  // Alles loeschen, dessen Tag 2 oder mehr Tage zurueckliegt
+  var AUFBEWAHRUNG_TAGE=2;
+  var entries=[];
+  try{entries=JSON.parse(localStorage.getItem('pd_entries')||'[]');}catch(e){entries=[];}
+  var zuLoeschen=[];
+
+  Object.keys(daten).forEach(function(tag){
+    if(tag===heuteTag)return;
+    var d=new Date(daten[tag]+'T00:00:00');
+    if(isNaN(d.getTime())){delete daten[tag];return;}
+    var diffTage=Math.floor((heute-d)/86400000);
+    if(diffTage>=AUFBEWAHRUNG_TAGE){
+      zuLoeschen.push(tag);
+      delete daten[tag];
+    }
+  });
+
+  if(zuLoeschen.length){
+    var keep=entries.filter(function(e){return zuLoeschen.indexOf(e.tag)<0;});
     localStorage.setItem('pd_entries',JSON.stringify(keep));
     // WICHTIG: nur die EIGENE Schule loeschen, sonst werden fremde Schulen mitgeloescht
     if(schule){
-      fetch(SB+'/entries?tag=eq.'+letzterTag+'&schule=eq.'+encodeURIComponent(schule),{method:'DELETE',headers:sbh()}).catch(function(){});
+      zuLoeschen.forEach(function(tag){
+        fetch(SB+'/entries?tag=eq.'+encodeURIComponent(tag)+'&schule=eq.'+encodeURIComponent(schule),{method:'DELETE',headers:sbh()}).catch(function(){});
+      });
     }
   }
 
-  // Heutigen Tag merken (nur Mo-Fr, damit am Wochenende nichts faelschlich geloescht wird)
+  localStorage.setItem('pd_tagDaten',JSON.stringify(daten));
   localStorage.setItem('pd_letztesDatum',heuteStr);
-  var heuteTag=tagMap[heute.getDay()]||'';
   if(heuteTag)localStorage.setItem('pd_letzterTag',heuteTag);
 }
 
@@ -937,7 +974,7 @@ function kindHinzu(){
   show('k-ok','✅ '+name+' hinzugefügt!');
   document.getElementById('k-vn').value='';document.getElementById('k-nn').value='';
   document.getElementById('k-kl').value='';document.getElementById('k-zeit').value='';
-  renderAdmin();
+  doRenderAdmin(); // sofort lokal zeichnen (kein Server-Reload -> kein Flackern)
   setTimeout(function(){hide('k-ok');},3000);
 }
 
@@ -973,8 +1010,10 @@ function doRenderAdmin(){
       if(!name)return;
       if(!confirm(name+' wirklich entfernen?'))return;
       saveKinder(alle.filter(function(k){return k.name!==name;}));
+      // Eintraege des Kindes lokal ebenfalls entfernen
+      saveEntries(getEntries().filter(function(e){return e.name.toLowerCase()!==name.toLowerCase();}));
       kbDel(name);
-      renderAdmin();
+      doRenderAdmin(); // sofort lokal zeichnen - sonst taucht das Kind kurz wieder auf
     });
     dels[i].addEventListener('touchend',function(ev){ev.preventDefault();this.click();});
   }
@@ -983,10 +1022,11 @@ function doRenderAdmin(){
 function alleKinderLoeschen(){
   var k=getKinder();
   if(k.length===0){alert('Keine Kinder vorhanden.');return;}
-  if(!confirm('Alle '+k.length+' Kinder wirklich loeschen?'))return;
+  if(!confirm('Alle '+k.length+' Kinder wirklich loeschen?\n\nAlle Eintraege dieser Schule werden dabei ebenfalls geloescht.'))return;
   saveKinder([]);
+  saveEntries([]);
   kbClear();
-  renderAdmin();
+  doRenderAdmin();
 }
 
 // ── Eltern Tag ──
@@ -1156,7 +1196,7 @@ function bulkAdd(){
   if(skipped.length)msg+=' Übersprungen: '+skipped.join(', ');
   show('kb-ok',msg);
   document.getElementById('k-bulk').value='';
-  renderAdmin();
+  doRenderAdmin(); // sofort lokal zeichnen (kein Server-Reload -> kein Flackern)
 }
 
 document.addEventListener('DOMContentLoaded',function(){
