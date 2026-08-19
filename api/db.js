@@ -93,12 +93,20 @@ module.exports = async (req, res) => {
     }
 
     // ── Beim Lesen der Schulliste nie die Code-Hashes mitschicken ──
-    let query = baueQuery(params, tabelle === 'schulen' ? '' : schule, tabelle);
+    // Beim Schreiben auf 'schulen' MUSS die id gefiltert werden, sonst wuerde
+    // die Aenderung alle Schulen treffen.
+    if (tabelle === 'schulen' && method !== 'GET' && !schule) {
+      return json(res, 400, { error: 'Schul-ID fehlt.' });
+    }
+    let query = baueQuery(params, schule, tabelle);
     if (tabelle === 'schulen' && method === 'GET') {
       query = query.replace(/(^|&)select=[^&]*/, '') + '&select=id,name,city,icon';
       query = query.replace(/^&/, '');
     }
 
+    if ((method === 'DELETE' || method === 'PATCH') && !query) {
+      return json(res, 400, { error: 'Aktion ohne Filter abgelehnt.' });
+    }
     const url = SB + '/rest/v1/' + tabelle + (query ? '?' + query : '');
 
     let body;
