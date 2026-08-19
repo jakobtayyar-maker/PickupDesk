@@ -47,6 +47,26 @@ module.exports = async (req, res) => {
   const [pfad, qs] = String(req.url || '').split('?');
   const params = new URLSearchParams(qs || '');
 
+  // ── Login-Pruefung (?t=login) ──────────────────────────────────────────
+  // Die Codes verlassen den Server NIE. Die App fragt hier nur "stimmt der Code?".
+  if (params.get('t') === 'login') {
+    const sid = (params.get('schule') || '').replace(/^eq\./, '').replace(/[^a-z0-9]/g, '');
+    const art = params.get('art') === 'admin' ? 'admin' : 'pin';
+    const code = req.headers['x-code'] || '';
+    if (!sid) return json(res, 400, { error: 'Schule fehlt.' });
+    try {
+      const r = await fetch(SB + '/rest/v1/schulen?select=pin,admin&id=eq.' + encodeURIComponent(sid), {
+        headers: { apikey: KEY, Authorization: 'Bearer ' + KEY }
+      });
+      const rows = await r.json();
+      const soll = Array.isArray(rows) && rows[0] ? rows[0][art] : null;
+      if (!soll) return json(res, 200, { ok: false, grund: 'kein Code hinterlegt' });
+      return json(res, 200, { ok: sha256(code) === soll });
+    } catch (e) {
+      return json(res, 500, { error: e.message });
+    }
+  }
+
   // Tabelle aus dem Pfad (/api/db/entries) ODER aus dem Parameter (?t=entries).
   // Der Parameter-Weg funktioniert auf Vercel ohne zusaetzliche Routing-Regeln.
   const teile = pfad.split('/').filter(Boolean);
