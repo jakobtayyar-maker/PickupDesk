@@ -54,7 +54,8 @@ module.exports = async (req, res) => {
   const tabelle = TABELLEN.includes(ausPfad) ? ausPfad : (params.get('t') || '');
   if (!TABELLEN.includes(tabelle)) return json(res, 400, { error: 'Unbekannte Tabelle.' });
 
-  const schule = (params.get('schule') || '').replace(/[^a-z0-9]/g, '');
+  // Schule sowohl als "hengstbach" wie auch als "eq.hengstbach" akzeptieren
+  const schule = (params.get('schule') || '').replace(/^eq\./, '').replace(/[^a-z0-9]/g, '');
   const adminCode = req.headers['x-admin-code'] || '';
   const masterCode = req.headers['x-master-code'] || '';
   const method = req.method;
