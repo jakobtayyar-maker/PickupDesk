@@ -27,7 +27,7 @@ function json(res, code, body) {
 function baueQuery(params, schule, tabelle) {
   const out = new URLSearchParams();
   for (const [k, v] of params.entries()) {
-    if (k === 'schule' || k === 'apikey' || k === 'id_token') continue; // nie vom Client uebernehmen
+    if (k === 'schule' || k === 'apikey' || k === 'id_token' || k === 't') continue; // nie vom Client uebernehmen
     out.append(k, v);
   }
   if (tabelle === 'schulen') {
@@ -47,9 +47,11 @@ module.exports = async (req, res) => {
   const [pfad, qs] = String(req.url || '').split('?');
   const params = new URLSearchParams(qs || '');
 
-  // Tabelle aus dem Pfad: /api/db/entries
+  // Tabelle aus dem Pfad (/api/db/entries) ODER aus dem Parameter (?t=entries).
+  // Der Parameter-Weg funktioniert auf Vercel ohne zusaetzliche Routing-Regeln.
   const teile = pfad.split('/').filter(Boolean);
-  const tabelle = teile[teile.length - 1];
+  const ausPfad = teile[teile.length - 1];
+  const tabelle = TABELLEN.includes(ausPfad) ? ausPfad : (params.get('t') || '');
   if (!TABELLEN.includes(tabelle)) return json(res, 400, { error: 'Unbekannte Tabelle.' });
 
   const schule = (params.get('schule') || '').replace(/[^a-z0-9]/g, '');
