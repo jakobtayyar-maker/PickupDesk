@@ -571,13 +571,21 @@ function kbClear(){
     fetch(SB+'?t=entries&name=not.is.null'+s,{method:'DELETE',headers:sbh()})
   ]).catch(function(){});
 }
+var LETZTER_LADEFEHLER='';
 function kbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
   var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
   fetch(SB+'?t=kinder&select=*&order=name.asc'+filter,{method:'GET',headers:sbh()})
-  .then(function(r){return r.json();})
-  .then(function(d){if(Array.isArray(d)){ss('pd_kinder',d);}if(cb)cb();})
-  .catch(function(){if(cb)cb();});
+  .then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('Status '+r.status+': '+(t||'').slice(0,120));});
+    return r.json();
+  })
+  .then(function(d){
+    if(Array.isArray(d)){LETZTER_LADEFEHLER='';ss('pd_kinder',d);}
+    else{LETZTER_LADEFEHLER='Unerwartete Antwort: '+JSON.stringify(d).slice(0,120);}
+    if(cb)cb();
+  })
+  .catch(function(e){LETZTER_LADEFEHLER=e.message||'Verbindungsfehler';if(cb)cb();});
 }
 function sbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
@@ -657,6 +665,37 @@ function hide(id){var e=document.getElementById(id);if(e)e.style.display='none';
 function tog(id){var e=document.getElementById(id);if(e){e.classList.toggle('on');e.textContent=e.classList.contains('on')?'\u2713':'';}}
 function inits(v,n){return((v||'')[0]||'').toUpperCase()+((n||'')[0]||'').toUpperCase();}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Namen vergleichbar machen: unsichtbare/doppelte Leerzeichen, Gross-/Kleinschreibung,
+// Akzente und Sonderzeichen sollen nicht zu "nicht registriert" fuehren.
+function normName(s){
+  s=String(s==null?'':s);
+  try{s=s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'');}catch(e){}
+  return s.toLowerCase()
+    .replace(/[\u00a0\u2000-\u200b\u202f\u3000]/g,' ')  // Sonder-Leerzeichen
+    .replace(/[^a-z0-9äöüß ]/g,' ')                       // Binde-/Satzzeichen
+    .replace(/\s+/g,' ')
+    .trim();
+}
+// NUR fuer Namensvorschlaege bei Tippfehlern - niemals zum Treffer-Finden!
+function normLoose(n){
+  return normName(n).replace(/[il1|]/g,'i').replace(/[o0]/g,'o').replace(/\s/g,'');
+}
+function findeKind(name,liste){
+  // Bewusst STRENG: nur Gross-/Kleinschreibung und Leerzeichen werden verziehen.
+  // Verwechselte Buchstaben (I/l, O/0) gelten NICHT als Treffer - sonst koennte
+  // versehentlich das falsche Kind getroffen werden.
+  var z=normName(name);
+  for(var i=0;i<liste.length;i++){if(normName(liste[i].name)===z)return liste[i];}
+  return null;
+}
+function aehnlicheNamen(name,liste){
+  var zl=normLoose(name), treffer=[];
+  for(var i=0;i<liste.length&&treffer.length<3;i++){
+    var k=normLoose(liste[i].name);
+    if(k.indexOf(zl.slice(0,Math.max(4,zl.length-3)))>=0||zl.indexOf(k.slice(0,4))>=0)treffer.push(liste[i].name);
+  }
+  return treffer;
+}
 
 // ── Eltern: Consent ──
 function acceptConsent(){
@@ -694,8 +733,9 @@ function melden(){
   var name=v+' '+n;
   // Kinder von Supabase laden falls nötig
   var kinder=getKinder();
-  var found=false;
-  for(var i=0;i<kinder.length;i++){if(kinder[i].name.toLowerCase()===name.toLowerCase()){found=true;break;}}
+  var treffer=findeKind(name,kinder);
+  var found=!!treffer;
+  if(found)name=treffer.name; // exakte Schreibweise aus der Kinderliste uebernehmen
   if(!found){
     // Lokale Daten koennen veraltet sein: erst frisch laden, DANN erst urteilen
     show('e-err','Einen Moment, Daten werden geladen…');
@@ -703,9 +743,18 @@ function melden(){
     kbLoad(function(){
       var nochmal=getKinder();
       for(var j=0;j<nochmal.length;j++){
-        if(nochmal[j].name.toLowerCase()===name.toLowerCase()){hide('e-err');melden();return;}
+        if(normName(nochmal[j].name)===normName(name)){hide('e-err');melden();return;}
       }
-      show('e-err','Das Kind "'+esc(name)+'" ist nicht im System registriert. Bitte wenden Sie sich an die Betreuung.');
+      var vor=aehnlicheNamen(name,nochmal);
+      var msg='Das Kind "'+esc(name)+'" ist nicht im System registriert.';
+      if(vor.length)msg+='<br>Meinten Sie: <b>'+vor.map(esc).join('</b>, <b>')+'</b>?';
+      else msg+=' Bitte wenden Sie sich an die Betreuung.';
+      // Diagnose: zeigt, WARUM es nicht passt (Kinderliste leer? Schule falsch? Zeichen?)
+      msg+='<br><span style="font-size:10px;color:#777">Diagnose: '+nochmal.length+' Kinder geladen'+
+           ', Schule: '+esc(aktiveSchule||'KEINE')+
+           (nochmal.length===0?' — Kinderliste LEER':'')+
+           (LETZTER_LADEFEHLER?' — Ladefehler: '+esc(LETZTER_LADEFEHLER):'')+'</span>';
+      show('e-err',msg);
     });
     return;
   }
@@ -738,7 +787,7 @@ function suchen(){
   var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
   var found=null;
   for(var i=0;i<entries.length;i++){
-    if(entries[i].name.toLowerCase()===name.toLowerCase()&&entries[i].tag===suchenDay){found=entries[i];break;}
+    if(normName(entries[i].name)===normName(name)&&entries[i].tag===suchenDay){found=entries[i];break;}
   }
   var tage={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
   if(!found){show('s-err','Kein Eintrag für "'+esc(name)+'" am '+(tage[suchenDay]||'')+' gefunden.');return;}
