@@ -758,7 +758,19 @@ function melden(){
     });
     return;
   }
-  var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
+  // Schon eine Meldung fuer dieses Kind an diesem Tag? Dann gehoert das in "Aendern".
+  var tageNamen={mo:'Montag',di:'Dienstag',mi:'Mittwoch',do:'Donnerstag',fr:'Freitag'};
+  var vorhanden=getEntries().find(function(e){
+    return normName(e.name)===normName(name)&&e.tag===elternDay&&e.src!=='admin';
+  });
+  if(vorhanden){
+    show('e-err','Für <b>'+esc(name)+'</b> wurde am '+(tageNamen[elternDay]||'')+
+         ' bereits <b>'+esc(vorhanden.zeit)+' Uhr</b> gemeldet.<br>'+
+         'Bitte nutzen Sie „Ändern", um die Zeit anzupassen.'+
+         '<br><button class="btn btn-d" style="margin-top:8px" onclick="zumAendern()">Zu „Ändern" wechseln</button>');
+    return;
+  }
+  var entries=getEntries().filter(function(e){return !(normName(e.name)===normName(name)&&e.tag===elternDay&&e.src!=='admin');});
   var newEntry={id:'e'+Date.now(),name:name,v:v,n:n,zeit:zeit,abhol:abhol,hw:'',done:false,tag:elternDay};
   entries.push(newEntry);
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
@@ -769,6 +781,18 @@ function melden(){
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
   setTimeout(function(){hide('e-ok');},4000);
+}
+
+// Wechselt in den Aendern-Bereich und uebernimmt Tag + Name aus dem Melde-Formular
+function zumAendern(){
+  var v=document.getElementById('e-vn').value.trim();
+  var n=document.getElementById('e-nn').value.trim();
+  hide('e-err');
+  eSub(2);
+  if(elternDay)sDay(elternDay);
+  document.getElementById('s-vn').value=v;
+  document.getElementById('s-nn').value=n;
+  suchen();
 }
 
 // ── Eltern: Suchen/Ändern/Löschen ──
