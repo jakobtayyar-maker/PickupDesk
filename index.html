@@ -905,7 +905,11 @@ function lSub(n){
 }
 
 function renderListe(){
-  kbLoad(function(){sbLoad(function(){doRenderListe();});});
+  // Beide Listen PARALLEL laden statt nacheinander - halbiert die Wartezeit.
+  var offen=2;
+  function fertig(){if(--offen<=0)doRenderListe();}
+  kbLoad(fertig);
+  sbLoad(fertig);
 }
 function doRenderListe(){
   if(!currentDay){
@@ -996,7 +1000,8 @@ function buildList(list,containerId,emptyMsg){
     var t=keys[k];
     var g=grp[t];
     var allD=g.every(function(x){return x.done;});
-    html+='<div class="tg-h">'+t+' Uhr <button class="gc'+(allD?' on':'')+'" onclick="toggleGroup(this)" data-time="'+t+'">'+(allD?'\u2713 Alle':'Alle '+g.length)+'</button></div>';
+    var gIds=encodeURIComponent(JSON.stringify(g.map(function(x){return String(x.id);})));
+    html+='<div class="tg-h">'+esc(t)+' Uhr <button class="gc'+(allD?' on':'')+'" onclick="toggleGroup(this)" data-time="'+esc(t)+'" data-ids="'+gIds+'">'+(allD?'\u2713 Alle':'Alle '+g.length)+'</button></div>';
     for(var j=0;j<g.length;j++){
       var e=g[j];
       var f=FARBEN[e.name.length%FARBEN.length];
@@ -1031,31 +1036,76 @@ function toggleGroup(btn){
   for(var i=0;i<entries.length;i++){if(entries[i].zeit===time)entries[i].done=!allD;}
   saveEntries(entries);renderListe();
 }
-function toggleDone(id){
-  var sid=String(id);
+// Setzt den Abgehakt-Status EINES Kindes und synchronisiert mit dem Server.
+function setDone(sid,wert,cb){
+  sid=String(sid);
   var entries=getEntries();
-  // Check if this is a regular entry (from Alle Kinder)
+
   if(sid.indexOf('reg_')===0){
+    // Regulaeres Kind aus "Alle Kinder": eigener Eintrag noetig
     var childName=sid.substring(4).replace(/_/g,' ');
-    var existing=entries.find(function(e){return e.name.toLowerCase()===childName.toLowerCase()&&e.tag===currentDay;});
-    if(existing){
-      existing.done=!existing.done;
-    }else{
-      var k=getKinder().find(function(x){return x.name.toLowerCase()===childName.toLowerCase();});
-      if(k){
-        var parts=k.name.split(' ');
-        entries.push({id:'e'+Date.now(),name:k.name,v:parts[0],n:parts.slice(1).join(' '),zeit:k.zeit||'15:00',abhol:'',hw:'',done:true,tag:currentDay,src:'admin'});
-      }
+    var vorhanden=entries.find(function(e){return normName(e.name)===normName(childName)&&e.tag===currentDay;});
+    if(vorhanden){
+      if(vorhanden.done===wert){if(cb)cb();return;}
+      vorhanden.done=wert;
+      saveEntries(entries);
+      sbPatch(vorhanden.id,{done:wert});
+      if(cb)cb();
+      return;
     }
-  }else{
-    for(var i=0;i<entries.length;i++){
-      if(String(entries[i].id)===sid){entries[i].done=!entries[i].done;break;}
+    if(!wert){if(cb)cb();return;} // nichts abzuwaehlen
+    var k=getKinder().find(function(x){return normName(x.name)===normName(childName);});
+    if(!k){if(cb)cb();return;}
+    var teile=k.name.split(' ');
+    var neu={id:'e'+Date.now()+Math.floor(Math.random()*1000),name:k.name,v:teile[0],
+             n:teile.slice(1).join(' '),zeit:k.zeit||'15:00',abhol:'',hw:'',
+             done:true,tag:currentDay,src:'admin'};
+    entries.push(neu);
+    saveEntries(entries);
+    sbPost(neu); // WICHTIG: neuer Eintrag muss POST sein, nicht PATCH
+    if(cb)cb();
+    return;
+  }
+
+  for(var i=0;i<entries.length;i++){
+    if(String(entries[i].id)===sid){
+      if(entries[i].done===wert){if(cb)cb();return;}
+      entries[i].done=wert;
+      saveEntries(entries);
+      sbPatch(entries[i].id,{done:wert});
+      if(cb)cb();
+      return;
     }
   }
-  saveEntries(entries);
-  var ue=entries.find(function(x){return String(x.id)===sid;});
-  if(ue)sbPatch(ue.id,{done:ue.done});renderListe();
+  if(cb)cb();
 }
+
+function istAbgehakt(sid){
+  sid=String(sid);
+  var entries=getEntries();
+  if(sid.indexOf('reg_')===0){
+    var nm=sid.substring(4).replace(/_/g,' ');
+    var e=entries.find(function(x){return normName(x.name)===normName(nm)&&x.tag===currentDay;});
+    return e?!!e.done:false;
+  }
+  var f=entries.find(function(x){return String(x.id)===sid;});
+  return f?!!f.done:false;
+}
+
+function toggleDone(id){
+  setDone(id,!istAbgehakt(id));
+  doRenderListe(); // nur lokal zeichnen - kein Server-Reload, das machte es langsam
+}
+
+function toggleGroup(btn){
+  var ids=[];
+  try{ids=JSON.parse(decodeURIComponent(btn.getAttribute('data-ids')||''));}catch(e){}
+  if(!ids.length)return;
+  var alleAb=ids.every(function(x){return istAbgehakt(x);});
+  for(var i=0;i<ids.length;i++)setDone(ids[i],!alleAb);
+  doRenderListe();
+}
+
 function clearEntries(){
   var alle=getEntries();
   if(alle.length===0){alert('Keine Sonder-Abholungen zum Löschen.');return;}
