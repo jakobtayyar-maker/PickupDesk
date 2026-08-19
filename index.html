@@ -1020,7 +1020,19 @@ function kindHinzu(){
   kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
   vergessenGeloescht(name); // falls der Name vorher geloescht war: wieder zulassen
   saveKinder(kinder);
-  kbPost({name:name,klasse:kl,zeit:zeit||'15:00',schule:aktiveSchule||''});
+  // Auf Server-Bestaetigung warten, sonst verschwindet das Kind beim naechsten Laden wieder
+  fetch(SB+'?t=kinder&schule='+encodeURIComponent(aktiveSchule),
+        {method:'POST',headers:sbh(),body:JSON.stringify({name:name,klasse:kl,zeit:zeit||'15:00',schule:aktiveSchule})})
+  .then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('Status '+r.status+': '+(t||'').slice(0,150));});
+  })
+  .catch(function(e){
+    // Wieder entfernen, damit lokal und Server uebereinstimmen
+    saveKinder(getKinder().filter(function(k){return k.name!==name;}));
+    doRenderAdmin();
+    hide('k-ok');
+    show('k-err','Nicht gespeichert: '+esc(e.message||'Verbindungsfehler'));
+  });
   show('k-ok','✅ '+esc(name)+' hinzugefügt!');
   document.getElementById('k-vn').value='';document.getElementById('k-nn').value='';
   document.getElementById('k-kl').value='';document.getElementById('k-zeit').value='';
@@ -1223,11 +1235,12 @@ function setLang(l){
 
 function bulkAdd(){
   hide('kb-ok');hide('kb-err');
+  if(!aktiveSchule){show('kb-err','Keine Schule aktiv.');return;}
   var text=document.getElementById('k-bulk').value.trim();
   if(!text){show('kb-err','Bitte Namen eingeben.');return;}
   var lines=text.split('\n');
   var kinder=getKinder();
-  var added=0;
+  var neue=[];
   var skipped=[];
   for(var i=0;i<lines.length;i++){
     var line=lines[i].trim();
@@ -1239,18 +1252,58 @@ function bulkAdd(){
     if(!name)continue;
     if(name.indexOf(' ')<0){skipped.push(name+' (Vor- und Nachname nötig)');continue;}
     if(kinder.find(function(k){return k.name.toLowerCase()===name.toLowerCase();})){skipped.push(name+' (bereits vorhanden)');continue;}
-    kinder.push({name:name,klasse:klasse,zeit:zeit});
-    vergessenGeloescht(name);
-    kbPost({name:name,klasse:klasse,zeit:zeit,schule:aktiveSchule||''});
-    added++;
+    if(neue.find(function(k){return k.name.toLowerCase()===name.toLowerCase();})){skipped.push(name+' (doppelt in der Liste)');continue;}
+    neue.push({name:name,klasse:klasse,zeit:zeit,schule:aktiveSchule});
   }
-  kinder.sort(function(a,b){return a.name.localeCompare(b.name);});
-  saveKinder(kinder);
-  var msg=added+' Kind'+(added!==1?'er':'')+' hinzugefügt.';
-  if(skipped.length)msg+=' Übersprungen: '+skipped.join(', ');
-  show('kb-ok',msg);
-  document.getElementById('k-bulk').value='';
-  doRenderAdmin(); // sofort lokal zeichnen (kein Server-Reload -> kein Flackern)
+  if(!neue.length){show('kb-err','Keine neuen Kinder gefunden.'+(skipped.length?' Übersprungen: '+skipped.length:''));return;}
+
+  var btn=document.getElementById('t-btn-bulk');
+  if(btn){btn.disabled=true;btn.textContent='Speichere '+neue.length+' Kinder…';}
+
+  // In Paketen zu 50 speichern und JEDES Paket bestaetigen lassen.
+  // Erst wenn der Server bestaetigt hat, wird lokal gespeichert.
+  var paketGroesse=50;
+  var gespeichert=[];
+  var fehler=null;
+
+  function sendePaket(start){
+    if(start>=neue.length||fehler)return fertig();
+    var paket=neue.slice(start,start+paketGroesse);
+    if(btn)btn.textContent='Speichere… '+Math.min(start+paketGroesse,neue.length)+'/'+neue.length;
+    fetch(SB+'?t=kinder&schule='+encodeURIComponent(aktiveSchule),
+          {method:'POST',headers:sbh(),body:JSON.stringify(paket)})
+    .then(function(r){
+      if(!r.ok)return r.text().then(function(t){throw new Error('Status '+r.status+': '+(t||'').slice(0,150));});
+      gespeichert=gespeichert.concat(paket);
+      sendePaket(start+paketGroesse);
+    })
+    .catch(function(e){fehler=e.message||'Verbindungsfehler';fertig();});
+  }
+
+  function fertig(){
+    if(btn){btn.disabled=false;btn.textContent='Alle hinzufügen';}
+    if(gespeichert.length){
+      var alle=getKinder();
+      gespeichert.forEach(function(k){
+        vergessenGeloescht(k.name);
+        alle.push({name:k.name,klasse:k.klasse,zeit:k.zeit});
+      });
+      alle.sort(function(a,b){return a.name.localeCompare(b.name);});
+      saveKinder(alle);
+      doRenderAdmin();
+    }
+    if(fehler){
+      show('kb-err','Fehler beim Speichern: '+esc(fehler)+
+           (gespeichert.length?' — '+gespeichert.length+' Kinder wurden gespeichert, der Rest nicht.':' — nichts gespeichert.'));
+      return;
+    }
+    var msg='✅ '+gespeichert.length+' Kind'+(gespeichert.length!==1?'er':'')+' gespeichert.';
+    if(skipped.length)msg+=' Übersprungen: '+skipped.length+'.';
+    show('kb-ok',msg);
+    document.getElementById('k-bulk').value='';
+  }
+
+  sendePaket(0);
 }
 
 document.addEventListener('DOMContentLoaded',function(){
