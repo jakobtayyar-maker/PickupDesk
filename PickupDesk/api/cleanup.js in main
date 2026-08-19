@@ -1,0 +1,57 @@
+// PickupDesk – taegliche Aufraeumung auf dem Server
+// Laeuft automatisch per Vercel-Cron (siehe vercel.json), also auch dann,
+// wenn niemand die App oeffnet. Loescht Eintraege, deren Wochentag
+// mindestens 2 Tage zurueckliegt, sowie verwaiste Eintraege.
+
+module.exports = async (req, res) => {
+  const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+
+  if (!SB || !KEY) {
+    res.statusCode = 500;
+    return res.end(JSON.stringify({ error: 'Server ist nicht konfiguriert.' }));
+  }
+
+  // Schutz: nur Vercel-Cron oder mit korrektem Geheimnis
+  const secret = process.env.CRON_SECRET;
+  const auth = req.headers['authorization'] || '';
+  if (secret && auth !== 'Bearer ' + secret) {
+    res.statusCode = 401;
+    return res.end(JSON.stringify({ error: 'Nicht berechtigt.' }));
+  }
+
+  const headers = {
+    apikey: KEY,
+    Authorization: 'Bearer ' + KEY,
+    'Content-Type': 'application/json'
+  };
+
+  // Welche Wochentage sind faellig? Alles ausser heute und gestern.
+  const tage = ['', 'mo', 'di', 'mi', 'do', 'fr', ''];
+  const heute = new Date();
+  const gestern = new Date(heute.getTime() - 86400000);
+  const behalten = [tage[heute.getDay()], tage[gestern.getDay()]].filter(Boolean);
+  const faellig = ['mo', 'di', 'mi', 'do', 'fr'].filter((t) => !behalten.includes(t));
+
+  try {
+    let geloescht = 0;
+    for (const tag of faellig) {
+      const r = await fetch(SB + '/rest/v1/entries?tag=eq.' + tag, {
+        method: 'DELETE',
+        headers: { ...headers, Prefer: 'return=representation' }
+      });
+      const d = await r.json().catch(() => []);
+      if (Array.isArray(d)) geloescht += d.length;
+    }
+
+    // Eintraege ohne gueltigen Wochentag entfernen
+    await fetch(SB + '/rest/v1/entries?tag=is.null', { method: 'DELETE', headers }).catch(() => {});
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ ok: true, behalten, geloeschteTage: faellig, anzahl: geloescht }));
+  } catch (e) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: e.message }));
+  }
+};
