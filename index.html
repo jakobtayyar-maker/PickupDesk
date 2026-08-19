@@ -539,9 +539,43 @@ function getEntries(){
   if(!tombListe().length)return l;
   return l.filter(function(e){return !istGeloescht(e.name);});
 }
-function sbPost(e){if(!aktiveSchule)return;var b=Object.assign({},e,{schule:aktiveSchule});fetch(SB+'?t=entries&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
-function sbDel(id){if(!aktiveSchule)return;fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
-function sbPatch(id,d){if(!aktiveSchule)return;fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
+// Kurze Meldung unten am Bildschirm, falls der Server etwas ablehnt.
+function syncFehler(was,text){
+  var box=document.getElementById('sync-err');
+  if(!box){
+    box=document.createElement('div');
+    box.id='sync-err';
+    box.style.cssText='position:fixed;left:10px;right:10px;bottom:10px;z-index:9999;background:#B91C1C;color:#fff;'+
+      'padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.45;box-shadow:0 4px 16px rgba(0,0,0,.3)';
+    box.onclick=function(){this.style.display='none';};
+    document.body.appendChild(box);
+  }
+  box.style.display='block';
+  box.innerHTML='<b>Nicht gespeichert ('+esc(was)+')</b><br>'+esc(text)+'<br><span style="opacity:.75">Zum Ausblenden antippen</span>';
+}
+function pruefeAntwort(r,was){
+  if(r.ok)return;
+  return r.text().then(function(t){syncFehler(was,'Status '+r.status+': '+(t||'').slice(0,180));});
+}
+function sbPost(e){
+  if(!aktiveSchule)return;
+  var b=Object.assign({},e,{schule:aktiveSchule});
+  return fetch(SB+'?t=entries&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)})
+    .then(function(r){return pruefeAntwort(r,'anlegen');})
+    .catch(function(){syncFehler('anlegen','Keine Verbindung zum Server.');});
+}
+function sbDel(id){
+  if(!aktiveSchule)return;
+  return fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()})
+    .then(function(r){return pruefeAntwort(r,'löschen');})
+    .catch(function(){syncFehler('löschen','Keine Verbindung zum Server.');});
+}
+function sbPatch(id,d){
+  if(!aktiveSchule)return;
+  return fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)})
+    .then(function(r){return pruefeAntwort(r,'abhaken');})
+    .catch(function(){syncFehler('abhaken','Keine Verbindung zum Server.');});
+}
 function kbPost(k){if(!aktiveSchule)return;var b=Object.assign({},k,{schule:aktiveSchule});fetch(SB+'?t=kinder&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
 function kbDel(name){
   if(!aktiveSchule)return Promise.resolve();
