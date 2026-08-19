@@ -908,9 +908,14 @@ async function login(){
   var box=document.getElementById('bc');
   if(!box.classList.contains('on')){show('p-err','Bitte Datenschutz zustimmen.');return;}
   var pin=document.getElementById('pin').value.trim();
-  var h=await sha256(pin);
-  var sc=getCodes(aktiveSchule);
-  if(!sc||h!==sc.pin){show('p-err','Falscher PIN.');return;}
+  var serverOk=await pruefeCode(aktiveSchule,'pin',pin);
+  if(serverOk===false){show('p-err','Falscher PIN.');return;}
+  if(serverOk===null){
+    // Rueckfall: fest hinterlegte Codes
+    var h=await sha256(pin);
+    var sc=getCodes(aktiveSchule);
+    if(!sc||h!==sc.pin){show('p-err','Falscher PIN.');return;}
+  }
   document.getElementById('tab-liste').style.display='';
   document.getElementById('tab-admin').style.display='';
   
@@ -1155,9 +1160,13 @@ async function adminCheck(){
   if(adminLoggedIn){go('admin');return;}
   var code=prompt('Admin-Code eingeben:');
   if(!code)return;
-  var ah=await sha256(code);
-  var sc=getCodes(aktiveSchule);
-  if(!sc||ah!==sc.admin){alert('Falscher Admin-Code.');return;}
+  var serverOkA=await pruefeCode(aktiveSchule,'admin',code);
+  if(serverOkA===false){alert('Falscher Admin-Code.');return;}
+  if(serverOkA===null){
+    var ah=await sha256(code);
+    var sc=getCodes(aktiveSchule);
+    if(!sc||ah!==sc.admin){alert('Falscher Admin-Code.');return;}
+  }
   AKTIVER_ADMIN_CODE=code; // fuer geschuetzte Server-Aktionen
   adminLoggedIn=true;
   go('admin');
@@ -1501,6 +1510,19 @@ function getSchulen(){
 function saveSchulen(s){ ss('pd_schulen', s); }
 
 // Login-Codes einer Schule: zuerst aus Supabase-Liste, sonst fest hinterlegte (Kern-Schulen)
+// Fragt den Server: "stimmt dieser Code?" - die Codes selbst bleiben dort.
+// Faellt auf die fest hinterlegten Codes zurueck, wenn der Server nicht antwortet.
+function pruefeCode(schule,art,code){
+  return fetch(SB+'?t=login&schule='+encodeURIComponent(schule)+'&art='+art,
+               {headers:{'Content-Type':'application/json','x-code':code}})
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(d){
+    if(d&&typeof d.ok==='boolean'&&!d.grund)return d.ok;
+    return null; // Server hat keinen Code hinterlegt -> lokal pruefen
+  })
+  .catch(function(){return null;});
+}
+
 function getCodes(id){
   var fest=SCHUL_CODES[id]||null;
   var s=(SCHULEN_DB||[]).find(function(x){return x.id===id;});
