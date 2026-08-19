@@ -1,1 +1,128 @@
+// PickupDesk – sicherer Zugang zur Datenbank
+// Der Supabase-Schluessel bleibt hier auf dem Server und taucht NIE im Browser auf.
+// Zusaetzlich wird hier erzwungen:
+//  - nur erlaubte Tabellen
+//  - jede Anfrage ist auf EINE Schule begrenzt (keine Vermischung moeglich)
+//  - gefaehrliche Aktionen (Massenloeschung, Kinder verwalten) nur mit Admin-Code
+//  - Schulverwaltung nur mit Master-Code
 
+const crypto = require('crypto');
+
+const TABELLEN = ['entries', 'kinder', 'schulen'];
+
+const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+
+// Master-Code (SHA-256). Kann per Umgebungsvariable MASTER_HASH ueberschrieben werden.
+const MASTER_HASH = process.env.MASTER_HASH ||
+  '2eed24e6692baff3bbd6c019992a67bcbd7e73346f7759274e95bd4c47b1c3bd';
+
+function json(res, code, body) {
+  res.statusCode = code;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(JSON.stringify(body));
+}
+
+// Query-String zusammenbauen und dabei die Schule fest verankern
+function baueQuery(params, schule, tabelle) {
+  const out = new URLSearchParams();
+  for (const [k, v] of params.entries()) {
+    if (k === 'schule' || k === 'apikey' || k === 'id_token') continue; // nie vom Client uebernehmen
+    out.append(k, v);
+  }
+  if (tabelle === 'schulen') {
+    if (schule) out.append('id', 'eq.' + schule);
+  } else {
+    out.append('schule', 'eq.' + schule);
+  }
+  return out.toString();
+}
+
+module.exports = async (req, res) => {
+  const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+
+  if (!SB || !KEY) return json(res, 500, { error: 'Server ist nicht konfiguriert (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY fehlen).' });
+
+  const [pfad, qs] = String(req.url || '').split('?');
+  const params = new URLSearchParams(qs || '');
+
+  // Tabelle aus dem Pfad: /api/db/entries
+  const teile = pfad.split('/').filter(Boolean);
+  const tabelle = teile[teile.length - 1];
+  if (!TABELLEN.includes(tabelle)) return json(res, 400, { error: 'Unbekannte Tabelle.' });
+
+  const schule = (params.get('schule') || '').replace(/[^a-z0-9]/g, '');
+  const adminCode = req.headers['x-admin-code'] || '';
+  const masterCode = req.headers['x-master-code'] || '';
+  const method = req.method;
+
+  const headers = {
+    apikey: KEY,
+    Authorization: 'Bearer ' + KEY,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation'
+  };
+
+  const hatFilter = ['id', 'name', 'tag'].some((f) => params.has(f));
+
+  try {
+    // ── Schulverwaltung: nur Master ──
+    if (tabelle === 'schulen' && method !== 'GET') {
+      if (sha256(masterCode) !== MASTER_HASH) return json(res, 403, { error: 'Master-Code erforderlich.' });
+    }
+
+    // ── Alle anderen Tabellen brauchen eine Schule ──
+    if (tabelle !== 'schulen' && !schule) return json(res, 400, { error: 'Schule fehlt.' });
+
+    // ── Admin-Code pruefen, wo noetig ──
+    const brauchtAdmin =
+      (tabelle === 'kinder' && method !== 'GET') ||          // Kinder anlegen/loeschen
+      (tabelle === 'entries' && method === 'DELETE' && !hatFilter); // Massenloeschung
+
+    if (brauchtAdmin) {
+      const r = await fetch(SB + '/rest/v1/schulen?select=admin&id=eq.' + encodeURIComponent(schule), { headers });
+      const rows = await r.json();
+      const erwartet = Array.isArray(rows) && rows[0] ? rows[0].admin : null;
+      if (!erwartet || sha256(adminCode) !== erwartet) {
+        return json(res, 403, { error: 'Admin-Code erforderlich oder falsch.' });
+      }
+    }
+
+    // ── Beim Lesen der Schulliste nie die Code-Hashes mitschicken ──
+    let query = baueQuery(params, tabelle === 'schulen' ? '' : schule, tabelle);
+    if (tabelle === 'schulen' && method === 'GET') {
+      query = query.replace(/(^|&)select=[^&]*/, '') + '&select=id,name,city,icon';
+      query = query.replace(/^&/, '');
+    }
+
+    const url = SB + '/rest/v1/' + tabelle + (query ? '?' + query : '');
+
+    let body;
+    if (method === 'POST' || method === 'PATCH') {
+      body = await new Promise((resolve) => {
+        let d = '';
+        req.on('data', (c) => (d += c));
+        req.on('end', () => resolve(d));
+      });
+      if (body && tabelle !== 'schulen') {
+        // Schule im Datensatz immer serverseitig setzen
+        try {
+          const obj = JSON.parse(body);
+          if (Array.isArray(obj)) obj.forEach((o) => (o.schule = schule));
+          else obj.schule = schule;
+          body = JSON.stringify(obj);
+        } catch (e) { /* unveraenderter Body */ }
+      }
+    }
+
+    const r = await fetch(url, { method, headers, body });
+    const text = await r.text();
+    res.statusCode = r.status;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.end(text || '[]');
+  } catch (e) {
+    json(res, 500, { error: e.message });
+  }
+};
