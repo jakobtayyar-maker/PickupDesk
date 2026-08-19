@@ -676,10 +676,6 @@ function normName(s){
     .replace(/\s+/g,' ')
     .trim();
 }
-// NUR fuer Namensvorschlaege bei Tippfehlern - niemals zum Treffer-Finden!
-function normLoose(n){
-  return normName(n).replace(/[il1|]/g,'i').replace(/[o0]/g,'o').replace(/\s/g,'');
-}
 function findeKind(name,liste){
   // Bewusst STRENG: nur Gross-/Kleinschreibung und Leerzeichen werden verziehen.
   // Verwechselte Buchstaben (I/l, O/0) gelten NICHT als Treffer - sonst koennte
@@ -687,14 +683,6 @@ function findeKind(name,liste){
   var z=normName(name);
   for(var i=0;i<liste.length;i++){if(normName(liste[i].name)===z)return liste[i];}
   return null;
-}
-function aehnlicheNamen(name,liste){
-  var zl=normLoose(name), treffer=[];
-  for(var i=0;i<liste.length&&treffer.length<3;i++){
-    var k=normLoose(liste[i].name);
-    if(k.indexOf(zl.slice(0,Math.max(4,zl.length-3)))>=0||zl.indexOf(k.slice(0,4))>=0)treffer.push(liste[i].name);
-  }
-  return treffer;
 }
 
 // ── Eltern: Consent ──
@@ -745,15 +733,12 @@ function melden(){
       for(var j=0;j<nochmal.length;j++){
         if(normName(nochmal[j].name)===normName(name)){hide('e-err');melden();return;}
       }
-      var vor=aehnlicheNamen(name,nochmal);
-      var msg='Das Kind "'+esc(name)+'" ist nicht im System registriert.';
-      if(vor.length)msg+='<br>Meinten Sie: <b>'+vor.map(esc).join('</b>, <b>')+'</b>?';
-      else msg+=' Bitte wenden Sie sich an die Betreuung.';
-      // Diagnose: zeigt, WARUM es nicht passt (Kinderliste leer? Schule falsch? Zeichen?)
-      msg+='<br><span style="font-size:10px;color:#777">Diagnose: '+nochmal.length+' Kinder geladen'+
-           ', Schule: '+esc(aktiveSchule||'KEINE')+
-           (nochmal.length===0?' — Kinderliste LEER':'')+
-           (LETZTER_LADEFEHLER?' — Ladefehler: '+esc(LETZTER_LADEFEHLER):'')+'</span>';
+      // Bewusst KEINE Namensvorschlaege: sonst koennte man ueber das Formular
+      // herausfinden, welche Kinder an der Schule sind.
+      var msg='Das Kind "'+esc(name)+'" ist nicht im System registriert. '+
+              'Bitte pruefen Sie die Schreibweise oder wenden Sie sich an die Betreuung.';
+      // Nur bei echten technischen Problemen einen Hinweis geben (keine Namen!)
+      if(LETZTER_LADEFEHLER)msg+='<br><span style="font-size:11px">Hinweis: Die Daten konnten nicht geladen werden. Bitte spaeter erneut versuchen.</span>';
       show('e-err',msg);
     });
     return;
