@@ -503,32 +503,41 @@ var FARBEN=[{bg:'#D8F3DC',fg:'#1B4332'},{bg:'#FEF3C7',fg:'#78350F'},{bg:'#DBEAFE
 // ── Speicher ──
 function ls(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+var TOMB_DAUER=120000; // 2 Minuten
+function tombListe(){
+  var roh=ls('pd_geloescht')||[];
+  var jetzt=Date.now();
+  // Altes Format (nur Namen) und abgelaufene Eintraege entfernen
+  var sauber=roh.filter(function(x){return x&&typeof x==='object'&&x.n&&(jetzt-x.t)<TOMB_DAUER;});
+  if(sauber.length!==roh.length)ss('pd_geloescht',sauber);
+  return sauber;
+}
+function istGeloescht(name){
+  var n=String(name).toLowerCase();
+  return tombListe().some(function(x){return x.n===n;});
+}
 function getKinder(){
   var l=ls('pd_kinder')||[];
-  // Geloeschte Namen ausblenden, falls der Server sie noch zurueckliefert
-  var tomb=ls('pd_geloescht')||[];
-  if(!tomb.length)return l;
-  return l.filter(function(k){return tomb.indexOf(String(k.name).toLowerCase())<0;});
+  var t=tombListe();
+  if(!t.length)return l;
+  return l.filter(function(k){return !istGeloescht(k.name);});
 }
 function merkeGeloescht(name){
-  var tomb=ls('pd_geloescht')||[];
+  var t=tombListe();
   var n=String(name).toLowerCase();
-  if(tomb.indexOf(n)<0){tomb.push(n);ss('pd_geloescht',tomb);}
+  if(!t.some(function(x){return x.n===n;})){t.push({n:n,t:Date.now()});ss('pd_geloescht',t);}
 }
 function vergessenGeloescht(name){
-  var tomb=ls('pd_geloescht')||[];
   var n=String(name).toLowerCase();
-  var i=tomb.indexOf(n);
-  if(i>=0){tomb.splice(i,1);ss('pd_geloescht',tomb);}
+  ss('pd_geloescht',tombListe().filter(function(x){return x.n!==n;}));
 }
 function saveKinder(l){ss('pd_kinder',l);}
 function getEntries(){
   var l=ls('pd_entries')||[];
   // Eintraege geloeschter Kinder ausblenden (z.B. "Frueher gehen"),
   // auch wenn der Server sie kurzzeitig noch zurueckliefert
-  var tomb=ls('pd_geloescht')||[];
-  if(!tomb.length)return l;
-  return l.filter(function(e){return tomb.indexOf(String(e.name).toLowerCase())<0;});
+  if(!tombListe().length)return l;
+  return l.filter(function(e){return !istGeloescht(e.name);});
 }
 function sbPost(e){if(!aktiveSchule)return;var b=Object.assign({},e,{schule:aktiveSchule});fetch(SB+'?t=entries&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
 function sbDel(id){if(!aktiveSchule)return;fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
@@ -688,9 +697,16 @@ function melden(){
   var found=false;
   for(var i=0;i<kinder.length;i++){if(kinder[i].name.toLowerCase()===name.toLowerCase()){found=true;break;}}
   if(!found){
-    // Nochmal versuchen - vielleicht sind lokale Daten veraltet
-    show('e-err','Das Kind "'+esc(name)+'" ist nicht im System registriert. Bitte wenden Sie sich an die Betreuung.');
-    kbLoad(function(){});
+    // Lokale Daten koennen veraltet sein: erst frisch laden, DANN erst urteilen
+    show('e-err','Einen Moment, Daten werden geladen…');
+    vergessenGeloescht(name); // evtl. alte Loesch-Markierung aufheben
+    kbLoad(function(){
+      var nochmal=getKinder();
+      for(var j=0;j<nochmal.length;j++){
+        if(nochmal[j].name.toLowerCase()===name.toLowerCase()){hide('e-err');melden();return;}
+      }
+      show('e-err','Das Kind "'+esc(name)+'" ist nicht im System registriert. Bitte wenden Sie sich an die Betreuung.');
+    });
     return;
   }
   var entries=getEntries().filter(function(e){return !(e.name.toLowerCase()===name.toLowerCase()&&e.tag===elternDay&&e.src!=='admin');});
