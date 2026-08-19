@@ -530,17 +530,17 @@ function getEntries(){
   if(!tomb.length)return l;
   return l.filter(function(e){return tomb.indexOf(String(e.name).toLowerCase())<0;});
 }
-function sbPost(e){if(!aktiveSchule)return;var b=Object.assign({},e,{schule:aktiveSchule});fetch(SB+'/entries',{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
-function sbDel(id){if(!aktiveSchule)return;fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
-function sbPatch(id,d){if(!aktiveSchule)return;fetch(SB+'/entries?id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
-function kbPost(k){if(!aktiveSchule)return;var b=Object.assign({},k,{schule:aktiveSchule});fetch(SB+'/kinder',{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
+function sbPost(e){if(!aktiveSchule)return;var b=Object.assign({},e,{schule:aktiveSchule});fetch(SB+'?t=entries&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
+function sbDel(id){if(!aktiveSchule)return;fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'DELETE',headers:sbh()}).catch(function(){});}
+function sbPatch(id,d){if(!aktiveSchule)return;fetch(SB+'?t=entries&id=eq.'+encodeURIComponent(String(id))+'&schule=eq.'+encodeURIComponent(aktiveSchule),{method:'PATCH',headers:sbh(),body:JSON.stringify(d)}).catch(function(){});}
+function kbPost(k){if(!aktiveSchule)return;var b=Object.assign({},k,{schule:aktiveSchule});fetch(SB+'?t=kinder&schule='+encodeURIComponent(aktiveSchule),{method:'POST',headers:sbh(),body:JSON.stringify(b)}).catch(function(){});}
 function kbDel(name){
   if(!aktiveSchule)return Promise.resolve();
   var s='&schule=eq.'+encodeURIComponent(aktiveSchule);
   // Kind UND alle seine Eintraege entfernen, sonst bleiben verwaiste Eintraege zurueck
   return Promise.all([
-    fetch(SB+'/kinder?name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()}),
-    fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()})
+    fetch(SB+'?t=kinder&name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()}),
+    fetch(SB+'?t=entries&name=eq.'+encodeURIComponent(name)+s,{method:'DELETE',headers:sbh()})
   ]).then(function(rs){
     // Fehler NICHT verschlucken: sonst kommt das Kind beim naechsten Laden zurueck
     var bad=rs.filter(function(r){return !r.ok;});
@@ -558,14 +558,14 @@ function kbClear(){
   if(!aktiveSchule)return Promise.resolve();
   var s='&schule=eq.'+encodeURIComponent(aktiveSchule);
   return Promise.all([
-    fetch(SB+'/kinder?name=not.is.null'+s,{method:'DELETE',headers:sbh()}),
-    fetch(SB+'/entries?name=not.is.null'+s,{method:'DELETE',headers:sbh()})
+    fetch(SB+'?t=kinder&name=not.is.null'+s,{method:'DELETE',headers:sbh()}),
+    fetch(SB+'?t=entries&name=not.is.null'+s,{method:'DELETE',headers:sbh()})
   ]).catch(function(){});
 }
 function kbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
   var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
-  fetch(SB+'/kinder?select=*&order=name.asc'+filter,{method:'GET',headers:sbh()})
+  fetch(SB+'?t=kinder&select=*&order=name.asc'+filter,{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){if(Array.isArray(d)){ss('pd_kinder',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
@@ -573,7 +573,7 @@ function kbLoad(cb){
 function sbLoad(cb){
   if(!aktiveSchule){if(cb)cb();return;}
   var filter='&schule=eq.'+encodeURIComponent(aktiveSchule);
-  fetch(SB+'/entries?select=*&order=zeit.asc'+filter,{method:'GET',headers:sbh()})
+  fetch(SB+'?t=entries&select=*&order=zeit.asc'+filter,{method:'GET',headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){if(Array.isArray(d)){ss('pd_entries',d);}if(cb)cb();})
   .catch(function(){if(cb)cb();});
@@ -620,7 +620,7 @@ function mitternachtCheck(){
     // WICHTIG: nur die EIGENE Schule loeschen, sonst werden fremde Schulen mitgeloescht
     if(schule){
       zuLoeschen.forEach(function(tag){
-        fetch(SB+'/entries?tag=eq.'+encodeURIComponent(tag)+'&schule=eq.'+encodeURIComponent(schule),{method:'DELETE',headers:sbh()}).catch(function(){});
+        fetch(SB+'?t=entries&tag=eq.'+encodeURIComponent(tag)+'&schule=eq.'+encodeURIComponent(schule),{method:'DELETE',headers:sbh()}).catch(function(){});
       });
     }
   }
@@ -699,7 +699,7 @@ function melden(){
   entries.sort(function(a,b){return a.zeit.localeCompare(b.zeit);});
   saveEntries(entries);
   // Supabase sync
-  fetch(SB+'/entries?name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
+  fetch(SB+'?t=entries&name=eq.'+encodeURIComponent(name)+'&tag=eq.'+elternDay+'&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).then(function(){sbPost(newEntry);}).catch(function(){sbPost(newEntry);});
   show('e-ok','<b>'+esc(name)+'</b> → '+esc(zeit)+' Uhr'+(abhol?' · '+abhol:''));
   document.getElementById('e-vn').value='';document.getElementById('e-nn').value='';
   document.getElementById('e-zeit').value='';document.getElementById('e-abhol').value='';
@@ -987,7 +987,7 @@ function clearEntries(){
   if(alle.length===0){alert('Keine Sonder-Abholungen zum Löschen.');return;}
   if(!confirm('Alle '+alle.length+' Sonder-Abholungen löschen?'))return;
   saveEntries([]);
-  fetch(SB+'/entries?id=not.is.null&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});
+  fetch(SB+'?t=entries&id=not.is.null&schule=eq.'+encodeURIComponent(aktiveSchule||''),{method:'DELETE',headers:sbh()}).catch(function(){});
   lSub(2);
   renderListe();
 }
@@ -1268,7 +1268,7 @@ var SCHULEN_DB=null; // aus Supabase geladene Schulliste (inkl. Code-Hashes)
 // Schulen aus Supabase laden. Faellt STILL auf lokale/Standard-Liste zurueck,
 // wenn die Tabelle fehlt oder kein Internet da ist -> App laeuft immer weiter.
 function loadSchulenDB(cb){
-  fetch(SB+'/schulen?select=*&order=name.asc',{headers:sbh()})
+  fetch(SB+'?t=schulen&select=*&order=name.asc',{headers:sbh()})
   .then(function(r){return r.json();})
   .then(function(d){
     if(Array.isArray(d)){SCHULEN_DB=d;ss('pd_schulen',d);}
@@ -1402,7 +1402,7 @@ function addSchule(){
   if(getSchulen().find(function(s){return s.id===id;})){alert('Schul-ID bereits vorhanden.');return;}
   Promise.all([sha256(pin),sha256(admin)]).then(function(hh){
     var row={id:id,name:name,city:city,icon:'🏫',pin:hh[0],admin:hh[1]};
-    fetch(SB+'/schulen',{method:'POST',headers:sbh(),body:JSON.stringify(row)})
+    fetch(SB+'?t=schulen&schule='+encodeURIComponent(id),{method:'POST',headers:sbh(),body:JSON.stringify(row)})
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&d.code){alert('Fehler beim Speichern: '+(d.message||d.code)+'\n(Ist die Tabelle "schulen" angelegt?)');return;}
@@ -1462,7 +1462,7 @@ function renderMasterSchulen(){
         var patch={};
         if(hh[0])patch.pin=hh[0];
         if(hh[1])patch.admin=hh[1];
-        return fetch(SB+'/schulen?id=eq.'+encodeURIComponent(sch.id),
+        return fetch(SB+'?t=schulen&schule='+encodeURIComponent(sch.id),
                      {method:'PATCH',headers:sbh(),body:JSON.stringify(patch)})
         .then(function(r){
           if(!r.ok){
@@ -1494,9 +1494,9 @@ function renderMasterSchulen(){
       if(!confirm(sch.name+' wirklich löschen?\n\nAlle Kinder UND alle Einträge dieser Schule werden dabei endgültig gelöscht.'))return;
       var sid=encodeURIComponent(sch.id);
       // Reihenfolge: erst Daten, dann Schule selbst
-      fetch(SB+'/entries?schule=eq.'+sid,{method:'DELETE',headers:sbh()})
-      .then(function(){return fetch(SB+'/kinder?schule=eq.'+sid,{method:'DELETE',headers:sbh()});})
-      .then(function(){return fetch(SB+'/schulen?id=eq.'+sid,{method:'DELETE',headers:sbh()});})
+      fetch(SB+'?t=entries&schule=eq.'+sid,{method:'DELETE',headers:sbh()})
+      .then(function(){return fetch(SB+'?t=kinder&schule=eq.'+sid,{method:'DELETE',headers:sbh()});})
+      .then(function(){return fetch(SB+'?t=schulen&schule='+sid,{method:'DELETE',headers:sbh()});})
       .then(function(){
         // Falls die gerade aktive Schule gelöscht wurde: lokal zurücksetzen
         if(aktiveSchule===sch.id){
